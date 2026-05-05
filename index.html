@@ -803,7 +803,7 @@ function renderPrevYear(selDay) {
   const dateStr = dt25.toLocaleDateString('de-CH', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
 
   if (!days2025.length) {
-    body.innerHTML = '<div class="py-no-data" style="font-size:0.8rem;color:var(--text3)">Vorjahresdaten werden geladen…</div>';
+    return;  // 2025 data not loaded yet
       return;
   }
 
@@ -811,7 +811,7 @@ function renderPrevYear(selDay) {
 
   const d25 = days2025.find(d => d.date === prevDay);
   if (!d25) {
-    body.innerHTML = '<div class="py-no-data" style="color:var(--text3)">Keine Messdaten für ' + dateStr + ' verfügbar.</div>';
+    return;  // no data for this day
       return;
   }
 
@@ -1086,7 +1086,7 @@ function renderComparison(days2026) {
   const body = document.getElementById('cmpBody');
   const matched = matchingDays2025(days2026).filter(Boolean);
   if (!matched.length) {
-    body.innerHTML = '<div class="cmp-loading" style="color:var(--text3)">Keine Vorjahresdaten für diesen Zeitraum verfügbar.</div>';
+    if (body) if(body) body.innerHTML = '<div class="cmp-loading" style="color:var(--text3)">Keine Vorjahresdaten für diesen Zeitraum verfügbar.</div>';
     return;
   }
 
@@ -1143,7 +1143,7 @@ function renderComparison(days2026) {
   const sub = document.getElementById('cmpSub');
   if (sub) sub.textContent = `Gleicher Zeitraum im Vorjahr (${p26TMax.length} Tage mit Daten) · Max. Temp · Durchschnitt · Niederschlag`;
 
-  body.innerHTML = `<div class="cmp-grid">
+  if(body) body.innerHTML = `<div class="cmp-grid">
     ${tMax26!==null  ? card('Höchsttemperatur', tMax26,  tMax25,  '°C', false) : ''}
     ${tMean26!==null ? card('Ø Temperatur',      tMean26, tMean25, '°C', false) : ''}
     ${rain26!==null  ? card('Niederschlag (gesamt)', rain26/60, rain25/60, ' mm', false) : ''}
