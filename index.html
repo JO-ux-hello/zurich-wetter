@@ -609,7 +609,7 @@ function switchTab(tab) {
   document.getElementById('monthControls').style.display = tab==='history' ? '' : 'none';
   if (tab==='forecast' && !omData) loadForecast();
   if (tab==='metar' && !metarLoaded) loadMetar();
-  if (tab==='compare') renderCompareTab();
+  if (tab==='compare') setTimeout(() => renderCompareTab(), 50);
 }
 
 function buildMonthButtons(days) {
@@ -1178,7 +1178,7 @@ function selectCmpMonth(m) {
   cmpMonth = m;
   document.querySelectorAll('[data-cmp-month]').forEach(b => b.classList.toggle('active', b.dataset.cmpMonth === m));
   cmpTabRendered = false;
-  renderCompareTab();
+  setTimeout(() => renderCompareTab(), 50);
 }
 
 function renderCompareTab() {
@@ -1657,17 +1657,20 @@ async function init() {
   buildCmpMonthButtons();
   if (allStations.length > 1) buildStationButtons(allStations);
   renderHistory();
+  // If compare tab already active (unlikely but safe), render it
+  if (activeTab === 'compare') renderCompareTab();
   // Load previous year data in background — doesn't block current view
   load2025().then(d => {
     days2025 = d;
-    if (activeTab === 'compare') renderCompareTab();
+    if (activeTab === 'compare') setTimeout(() => renderCompareTab(), 50);
     // Always re-render prevYear section — user may already be on forecast tab
     if (omData) {
       const selDay = omData.daily.time[fcSelIdx] || omData.daily.time[0];
       renderPrevYear(selDay);
     }
   }).catch(() => {
-    document.getElementById('pyBody').innerHTML = '<div class="py-no-data" style="color:var(--text3)">Vorjahresdaten konnten nicht geladen werden.</div>';
+    const pb = document.getElementById('pyBody');
+    if (pb) pb.innerHTML = '<div class="py-no-data" style="color:var(--text3)">Vorjahresdaten konnten nicht geladen werden.</div>';
   });
 }
 function buildStationButtons(stations) {
