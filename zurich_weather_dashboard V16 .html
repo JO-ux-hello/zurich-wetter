@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zürich Wetter — Meteodaten 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f0ede6;--surface:#ffffff;--surface2:#e8e4db;--text:#1a1814;--text2:#5a5550;--text3:#9a9590;
+  --border:rgba(0,0,0,0.1);--accent:#1a4a80;--warm:#c8520a;--rain:#1a6fa8;--radius:14px;
+  /* chart colours — light mode */
+  --c-tmax:#c8520a;   --c-tmax-dim:rgba(200,82,10,0.28);
+  --c-tmean:#1a4a80;  --c-tmean-dim:rgba(26,74,128,0.28);
+  --c-rain:#1a6fa8;   --c-rain-dim:rgba(26,111,168,0.3);
+  --c-wind:#0e8a5a;
+  --c-prev-tmax:rgba(200,82,10,0.45);  --c-prev-tmean:rgba(26,74,128,0.45);  --c-prev-rain:rgba(26,111,168,0.35);
+  --grid:rgba(0,0,0,0.06); --tick:#888;
+  --c-press:#7c52c8; --c-hum:#e07820;
+}
+[data-theme="dark"] {
+  --bg:#111009;--surface:#1c1a14;--surface2:#26231b;--text:#f2efe8;--text2:#a8a49e;--text3:#6a6560;
+  --border:rgba(255,255,255,0.09);--accent:#5a9ee0;--warm:#f07030;--rain:#5ab0e8;
+  /* chart colours — dark mode */
+  --c-tmax:#f07030;   --c-tmax-dim:rgba(240,112,48,0.25);
+  --c-tmean:#5a9ee0;  --c-tmean-dim:rgba(90,158,224,0.25);
+  --c-rain:#5ab0e8;   --c-rain-dim:rgba(90,176,232,0.28);
+  --c-wind:#2ec48a;
+  --c-prev-tmax:rgba(240,112,48,0.4);  --c-prev-tmean:rgba(90,158,224,0.4);  --c-prev-rain:rgba(90,176,232,0.32);
+  --grid:rgba(255,255,255,0.07); --tick:#888;
+  --c-press:#a070f0; --c-hum:#f0a040;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:1.25rem 2rem 0.75rem;position:sticky;top:0;z-index:100;}
+.hrow{display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem;flex-wrap:wrap;}
+.theme-btn{margin-left:auto;padding:5px 14px;border-radius:20px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:0.75rem;
+  cursor:pointer;transition:all 0.2s;user-select:none;}
+.theme-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.egg-btn{position:fixed;bottom:1.2rem;right:1.2rem;width:36px;height:36px;border-radius:50%;
+  border:1px solid var(--border);background:var(--surface);cursor:pointer;
+  font-size:1rem;display:flex;align-items:center;justify-content:center;
+  opacity:0.18;transition:opacity 0.3s,transform 0.3s;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.egg-btn:hover{opacity:0.7;transform:scale(1.15);}
+.egg-btn.active{opacity:1;background:var(--accent);border-color:var(--accent);transform:scale(1.05);}
+h1{font-family:'DM Serif Display',serif;font-size:1.8rem;font-weight:400;letter-spacing:-0.5px;}
+.subtitle{font-size:0.8rem;color:var(--text3);}
+.main-tabs{display:flex;border-bottom:1px solid var(--border);}
+.main-tab{padding:8px 20px;border:none;background:transparent;color:var(--text2);font-family:'DM Sans',sans-serif;
+  font-size:0.85rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s;}
+.main-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500;}
+.main-tab:hover:not(.active){color:var(--text);}
+.controls{padding:0.6rem 0 0;display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;}
+.month-btn{padding:4px 13px;border-radius:20px;border:1px solid var(--border);background:transparent;
+  color:var(--text2);font-family:'DM Sans',sans-serif;font-size:0.76rem;cursor:pointer;transition:all 0.15s;}
+.month-btn:hover{background:var(--surface2);color:var(--text);}
+.month-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+main{padding:1.5rem 2rem;max-width:1300px;margin:0 auto;}
+.loading{display:flex;align-items:center;justify-content:center;min-height:360px;flex-direction:column;gap:1rem;color:var(--text2);}
+.spinner{width:34px;height:34px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.error-msg{background:#fff0f0;border:1px solid #f5c6c6;color:#8b2222;border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1.5rem;font-size:0.88rem;line-height:1.6;}
+@media(prefers-color-scheme:dark){.error-msg{background:#2a1515;border-color:#5a2222;color:#f5aaaa;}}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:11px;margin-bottom:1.5rem;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.9rem 1.1rem;}
+.kpi-label{font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;}
+.kpi-value{font-size:1.55rem;font-weight:300;}
+.kpi-unit{font-size:0.8rem;color:var(--text3);margin-left:2px;}
+.kpi-sub{font-size:0.72rem;color:var(--text3);margin-top:3px;}
+.chart-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1.5rem;}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;}
+.chart-title{font-family:'DM Serif Display',serif;font-size:1.05rem;font-weight:400;}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:0.73rem;color:var(--text2);align-items:center;}
+.leg-dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+.chart-wrap{position:relative;width:100%;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;}
+@media(max-width:700px){.two-col{grid-template-columns:1fr;}main{padding:1rem;}header{padding:1rem 1rem 0;}}
+.week-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-bottom:1.5rem;}
+.day-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0.9rem 0.7rem;text-align:center;}
+.day-name{font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;}
+.day-date{font-size:0.82rem;font-weight:500;margin-bottom:8px;}
+.day-icon{font-size:1.7rem;margin-bottom:6px;line-height:1;}
+.day-max{font-weight:500;color:var(--warm);}
+.day-min{color:var(--accent);}
+.day-rain,.day-wind{font-size:0.7rem;color:var(--text3);margin-top:4px;}
+/* Forecast */
+.forecast-hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:9px;margin-bottom:1.4rem;}
+.fc-day{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:0.9rem 0.6rem;text-align:center;cursor:pointer;transition:border-color 0.15s;}
+.fc-day:hover,.fc-day.selected{border-color:var(--accent);}
+.fc-day.selected{background:var(--surface2);}
+.fc-dayname{font-size:0.68rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;}
+.fc-date{font-size:0.76rem;font-weight:500;margin-bottom:7px;}
+.fc-icon{font-size:1.5rem;line-height:1;margin-bottom:5px;}
+.fc-tmax{font-size:0.95rem;font-weight:500;color:var(--warm);}
+.fc-tmin{font-size:0.82rem;color:var(--accent);}
+.fc-precip{font-size:0.68rem;color:var(--text3);margin-top:3px;}
+.fc-detail{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1.4rem;}
+.fc-detail-title{font-family:'DM Serif Display',serif;font-size:1.05rem;font-weight:400;margin-bottom:1rem;}
+.fc-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:9px;margin-bottom:1.2rem;}
+.fc-kpi{background:var(--surface2);border-radius:10px;padding:0.7rem 0.9rem;}
+.fc-kpi-label{font-size:0.68rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;}
+.fc-kpi-val{font-size:1.25rem;font-weight:300;}
+.fc-kpi-unit{font-size:0.72rem;color:var(--text3);}
+.hourly-scroll{overflow-x:auto;padding-bottom:0.5rem;}
+.hourly-row{display:flex;gap:7px;min-width:max-content;}
+.hourly-cell{background:var(--surface2);border-radius:10px;padding:7px 10px;text-align:center;min-width:58px;}
+.hourly-time{font-size:0.67rem;color:var(--text3);margin-bottom:3px;}
+.hourly-icon{font-size:1.1rem;line-height:1;margin-bottom:3px;}
+.hourly-temp{font-size:0.84rem;font-weight:500;}
+.hourly-wind{font-size:0.64rem;color:var(--text3);margin-top:2px;}
+.source-note{font-size:0.72rem;color:var(--text3);margin-top:1.5rem;line-height:1.6;}
+.cmp-controls{display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-bottom:1.2rem;}
+.source-note a{color:var(--accent);}
+/* METAR tab */
+.metar-string{font-family:'Courier New',monospace;font-size:0.95rem;background:var(--surface2);
+  border-radius:10px;padding:1rem 1.25rem;letter-spacing:0.04em;word-break:break-all;line-height:1.8;
+  border:1px solid var(--border);margin-bottom:1.5rem;color:var(--text);}
+.metar-string span.hl{color:var(--accent);font-weight:600;}
+.metar-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem;}
+.metar-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;}
+.metar-card-icon{font-size:1.5rem;line-height:1;margin-bottom:6px;}
+.metar-card-label{font-size:0.67rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:4px;}
+.metar-card-val{font-size:1.5rem;font-weight:300;line-height:1;}
+.metar-card-unit{font-size:0.8rem;color:var(--text3);margin-left:2px;}
+.metar-card-sub{font-size:0.72rem;color:var(--text3);margin-top:3px;}
+.metar-history-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1.5rem;}
+.metar-history-title{font-family:'DM Serif Display',serif;font-size:1.05rem;font-weight:400;margin-bottom:1rem;}
+.metar-wind-rose{display:flex;justify-content:center;margin-bottom:1.5rem;}
+.metar-section-title{font-family:'DM Serif Display',serif;font-size:1.05rem;font-weight:400;margin-bottom:0.9rem;}
+.metar-loading{text-align:center;padding:3rem;color:var(--text3);}
+.py-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1.5rem;}
+.py-title{font-family:'DM Serif Display',serif;font-size:1.05rem;font-weight:400;margin-bottom:0.25rem;}
+.py-sub{font-size:0.74rem;color:var(--text3);margin-bottom:1.1rem;}
+.py-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.2rem;}
+.py-kpi{background:var(--surface2);border-radius:10px;padding:0.75rem 1rem;}
+.py-kpi-label{font-size:0.67rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:5px;}
+.py-kpi-row2{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;}
+.py-yr{font-size:0.7rem;color:var(--text3);}
+.py-val{font-size:1.05rem;font-weight:400;}
+.py-val-prev{font-size:0.9rem;color:var(--text2);}
+.py-badge{display:inline-block;font-size:0.72rem;font-weight:500;padding:2px 8px;border-radius:20px;margin-top:5px;}
+.py-badge.up{background:rgba(200,82,10,0.12);color:var(--c-tmax);}
+.py-badge.down{background:rgba(26,74,128,0.12);color:var(--c-tmean);}
+.py-badge.flat{background:var(--surface2);color:var(--text3);}
+.py-no-data{font-size:0.8rem;color:var(--text3);padding:0.5rem 0;}
+.py-chart-wrap{position:relative;width:100%;height:200px;margin-top:1rem;}
+.py-stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:0.9rem;}
+.py-stat{background:var(--surface2);border-radius:9px;padding:0.6rem 0.85rem;}
+.py-stat-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:3px;}
+.py-stat-vals{display:flex;justify-content:space-between;align-items:baseline;gap:6px;}
+.py-stat-2026{font-size:0.95rem;font-weight:500;}
+.py-stat-2025{font-size:0.82rem;color:var(--text2);}
+.py-stat-badge{font-size:0.68rem;font-weight:500;padding:1px 6px;border-radius:12px;margin-top:3px;display:inline-block;}
+.py-stat-badge.up{background:rgba(200,82,10,0.13);color:var(--c-tmax);}
+.py-stat-badge.dn{background:rgba(26,74,128,0.13);color:var(--c-tmean);}
+.py-stat-badge.fl{background:var(--surface2);color:var(--text3);}
+.cmp-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1.5rem;}
+.cmp-title{font-family:'DM Serif Display',serif;font-size:1.05rem;font-weight:400;margin-bottom:0.3rem;}
+.cmp-sub{font-size:0.75rem;color:var(--text3);margin-bottom:1.2rem;}
+.cmp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.4rem;}
+@media(max-width:500px){.cmp-grid{grid-template-columns:1fr;}}
+.cmp-card{background:var(--surface2);border-radius:10px;padding:1rem 1.1rem;}
+.cmp-card-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:0.6rem;}
+.cmp-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+.cmp-year{font-size:0.72rem;color:var(--text3);}
+.cmp-val{font-size:1.1rem;font-weight:400;}
+.cmp-delta{font-size:0.78rem;font-weight:500;padding:2px 7px;border-radius:20px;margin-top:6px;display:inline-block;}
+.cmp-delta.up{background:rgba(212,105,30,0.12);color:#d4691e;}
+.cmp-delta.down{background:rgba(45,90,142,0.12);color:#2d5a8e;}
+.cmp-delta.flat{background:rgba(160,156,152,0.15);color:var(--text3);}
+.cmp-loading{text-align:center;padding:1.5rem;color:var(--text3);font-size:0.85rem;}
+.status-bar{font-size:0.72rem;color:var(--text3);padding:0.4rem 0;margin-bottom:0.8rem;}
+.map-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:1.5rem;}
+.map-header{padding:1rem 1.4rem 0.75rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;}
+.map-legend{display:flex;gap:14px;font-size:0.73rem;color:var(--text2);flex-wrap:wrap;}
+.map-legend-dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:middle;border:2px solid rgba(255,255,255,0.7);}
+.map-wrap{position:relative;height:300px;width:100%;overflow:hidden;border-top:1px solid var(--border);}
+.map-wrap iframe{width:100%;height:100%;border:none;display:block;}
+.map-tip{font-size:0.7rem;color:var(--text3);padding:4px 1.4rem 8px;font-style:italic;}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <h1>Zürich Wetter</h1>
+    <span class="subtitle">Meteodaten 2026 · Stundenmittelwerte</span>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙 Dunkel</button>
+  </div>
+  <div class="main-tabs">
+    <button class="main-tab active" onclick="switchTab('history')">Verlauf 2026</button>
+    <button class="main-tab" onclick="switchTab('compare')">2026 vs 2025</button>
+    <button class="main-tab" onclick="switchTab('forecast')">Vorhersage</button>
+    <button class="main-tab" id="metar-tab-btn" onclick="switchTab('metar')" style="display:none">METAR / TAF</button>
+  </div>
+  <div class="controls" id="monthControls">
+    <span style="font-size:0.72rem;color:var(--text3);margin-right:2px;">Zeitraum:</span>
+  </div>
+</header>
+<main>
+  <!-- HISTORY TAB -->
+  <div id="panel-history" class="tab-panel active">
+    <div class="loading" id="hist-loading"><div class="spinner"></div><span>Verlaufsdaten werden geladen…</span></div>
+    <div id="hist-content" style="display:none">
+      <div id="hist-error" class="error-msg" style="display:none"></div>
+      <div id="stationBar" style="display:none;margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+        <span style="font-size:0.72rem;color:var(--text3);">Station:</span>
+        <button class="month-btn active" data-station="" onclick="selectStation(this,'')">Alle (Mittelwert)</button>
+      </div>
+      <div id="weekSection" style="display:none">
+        <h2 style="font-family:'DM Serif Display',serif;font-size:1.05rem;font-weight:400;margin-bottom:0.9rem;">Letzte 7 Tage</h2>
+        <div class="week-grid" id="weekGrid"></div>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="chart-section">
+        <div class="chart-header">
+          <span class="chart-title" id="mainChartTitle">Temperatur &amp; Niederschlag</span>
+          <div class="legend">
+            <span><span class="leg-dot" style="background:#d4691e"></span>Max Temp.</span>
+            <span><span class="leg-dot" style="background:#2d5a8e;opacity:0.6"></span>Mittl. Temp.</span>
+            <span><span class="leg-dot" style="background:#4a90c4"></span>Regen (min)</span>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:290px"><canvas id="mainChart" role="img" aria-label="Temperatur und Niederschlag Zürich"></canvas></div>
+      </div>
+      <div class="two-col">
+        <div class="chart-section">
+          <div class="chart-header">
+            <span class="chart-title">Windgeschwindigkeit</span>
+            <div class="legend"><span><span class="leg-dot" style="background:#1d9e75"></span>Max Wind (m/s)</span></div>
+          </div>
+          <div class="chart-wrap" style="height:210px"><canvas id="windChart" role="img" aria-label="Windgeschwindigkeit"></canvas></div>
+        </div>
+        <div class="chart-section" id="pressureSection">
+          <div class="chart-header">
+            <span class="chart-title">Luftdruck &amp; Feuchte</span>
+            <div class="legend">
+              <span><span class="leg-dot" style="background:#6b4fa0"></span>Druck (hPa)</span>
+              <span><span class="leg-dot" style="background:#c47a3d"></span>Feuchte (%)</span>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:210px"><canvas id="pressureChart" role="img" aria-label="Luftdruck und Feuchte"></canvas></div>
+        </div>
+      </div>
+      <div class="map-section">
+        <div class="map-header">
+          <span class="chart-title">Messstationen</span>
+          <div class="map-legend">
+            <span><span class="map-legend-dot" style="background:#1d9e75"></span>Hauptstation</span>
+            <span><span class="map-legend-dot" style="background:#2d5a8e"></span>Messstation</span>
+          </div>
+        </div>
+        <div class="map-wrap" id="map-history-wrap"></div>
+        <div class="map-tip">Auf Marker klicken für Details</div>
+        <div style="padding:0.9rem 1.4rem;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.6rem 1.5rem;">
+          <div>
+            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:4px;">Über die Daten</div>
+            <div style="font-size:0.78rem;color:var(--text2);line-height:1.6;">Die Verlaufsdaten stammen von <strong>5 UGZ-Messstationen</strong> der Stadt Zürich. Jede Station misst stündlich Temperatur, Wind, Niederschlagsdauer, Luftdruck und Feuchte. Standardmässig werden alle Stationen gemittelt. Mit dem <strong>Station-Filter</strong> oben können Sie einzelne Stationen auswählen.</div>
+          </div>
+          <div>
+            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:4px;">Stationen</div>
+            <div style="font-size:0.78rem;color:var(--text2);line-height:1.8;">
+              <span style="color:#1d9e75">●</span> <strong>Stampfenbachstr.</strong> — Stadtklima, 444 m<br>
+              <span style="color:#2d5a8e">●</span> Schimmelstrasse — Stadtklima, 430 m<br>
+              <span style="color:#2d5a8e">●</span> Rosengartenstr. — Verkehr, 443 m<br>
+              <span style="color:#2d5a8e">●</span> Heubeeribüel — Vorort, 560 m<br>
+              <span style="color:#2d5a8e">●</span> Käferberg — Hintergrund, 600 m
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="source-note">
+        Datenquelle: <a href="https://data.stadt-zuerich.ch/dataset/ugz_meteodaten_stundenmittelwerte" target="_blank">Stadt Zürich — Meteorologische Stundenmittelwerte 2026</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORECAST TAB -->
+  <div id="panel-compare" class="tab-panel">
+    <div class="loading" id="cmp-tab-loading" style="display:none"><div class="spinner"></div><span>Vergleichsdaten werden geladen…</span></div>
+    <div id="cmp-tab-content">
+      <div class="cmp-controls" id="cmpMonthControls">
+        <span style="font-size:0.72rem;color:var(--text3);margin-right:2px;">Zeitraum:</span>
+        <button class="month-btn active" data-cmp-month="all" onclick="selectCmpMonth('all')">Gesamt</button>
+      </div>
+      <!-- Three overlay charts: max temp, mean temp, precipitation -->
+      <div class="chart-section">
+        <div class="chart-header">
+          <span class="chart-title">Höchsttemperatur — täglich</span>
+
+        </div>
+        <div class="chart-wrap" style="height:230px"><canvas id="cmpTMaxChart"></canvas></div>
+      </div>
+      <div class="chart-section">
+        <div class="chart-header">
+          <span class="chart-title">Durchschnittstemperatur — täglich</span>
+
+        </div>
+        <div class="chart-wrap" style="height:230px"><canvas id="cmpTMeanChart"></canvas></div>
+      </div>
+      <div class="chart-section">
+        <div class="chart-header">
+          <span class="chart-title">Niederschlagsdauer — täglich (Minuten/Station)</span>
+        </div>
+        <div class="chart-wrap" style="height:230px"><canvas id="cmpRainChart"></canvas></div>
+      </div>
+      <div class="source-note">
+        2026: <a href="https://data.stadt-zuerich.ch/dataset/ugz_meteodaten_stundenmittelwerte/download/ugz_ogd_meteo_h1_2026.csv" target="_blank">ugz_ogd_meteo_h1_2026.csv</a> ·
+        2025: <a href="https://data.stadt-zuerich.ch/dataset/ugz_meteodaten_stundenmittelwerte/download/ugz_ogd_meteo_h1_2025.csv" target="_blank">ugz_ogd_meteo_h1_2025.csv</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-forecast" class="tab-panel">
+    <div class="loading" id="fc-loading"><div class="spinner"></div><span>Vorhersage wird geladen…</span></div>
+    <div id="fc-content" style="display:none">
+      <div id="fc-error" class="error-msg" style="display:none"></div>
+      <div class="forecast-hero" id="fcHero"></div>
+      <div class="fc-detail" id="fcDetail">
+        <div class="fc-detail-title" id="fcDetailTitle">Stundendetails</div>
+        <div class="fc-kpi-row" id="fcKpis"></div>
+
+        <!-- Vorjahr comparison — chart only -->
+        <div id="pySection" style="margin:0.5rem 0 0;">
+          <div style="font-size:0.72rem;color:var(--text3);margin-bottom:0.3rem;" id="pySub"></div>
+        </div>
+
+        <div class="hourly-scroll"><div class="hourly-row" id="fcHourly"></div></div>
+        <!-- Single combined chart: 2026 forecast + 2025 measured -->
+        <div id="fcChartLegend" style="font-size:0.68rem;color:var(--text3);margin-top:1.2rem;margin-bottom:0.4rem;display:flex;gap:1rem;flex-wrap:wrap;"></div>
+        <div style="position:relative;width:100%;height:240px;">
+          <canvas id="fcChart" role="img" aria-label="Stündliche Vorhersage und Vorjahresvergleich"></canvas>
+        </div>
+      </div>
+      <div class="map-section">
+        <div class="map-header">
+          <span class="chart-title">Vorhersagegebiet</span>
+          <div class="map-legend">
+            <span><span class="map-legend-dot" style="background:#d4691e"></span>Gitterpunkt</span>
+            <span style="font-size:0.7rem;color:var(--text3);">gestrichelt = Modellgebiet (~8 km)</span>
+          </div>
+        </div>
+        <div class="map-wrap" id="map-forecast-wrap"></div>
+        <div class="map-tip">Marker zeigt den Vorhersage-Gitterpunkt</div>
+        <div style="padding:0.9rem 1.4rem;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.6rem 1.5rem;">
+          <div>
+            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:4px;">Über die Vorhersage</div>
+            <div style="font-size:0.78rem;color:var(--text2);line-height:1.6;">Die Vorhersage stammt von <strong>Open-Meteo</strong>, einem kostenlosen Wetterdienst ohne API-Schlüssel. Der Gitterpunkt liegt im Herzen von Zürich (47.38°N, 8.54°E). Die gestrichelte Fläche zeigt das ungefähre Einzugsgebiet des Modells.</div>
+          </div>
+          <div>
+            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:4px;">Modelle &amp; Auflösung</div>
+            <div style="font-size:0.78rem;color:var(--text2);line-height:1.8;">
+              📍 Koordinaten: 47.3769°N · 8.5417°E<br>
+              🔭 Modelle: ERA5, ICON, ECMWF<br>
+              📏 Räuml. Auflösung: ~1 km<br>
+              ⏱ Zeitl. Auflösung: stündlich<br>
+              📅 Vorhersagehorizont: 8 Tage (+192h)
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="source-note">
+        Vorhersage: <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> — Kostenlose Wettervorhersage für Zürich (47.38°N 8.54°E), 8 Tage · Stündliche Auflösung
+      </div>
+    </div>
+  </div>
+  <div id="panel-metar" class="tab-panel">
+    <div id="metar-loading" class="metar-loading"><div class="spinner" style="margin:0 auto 1rem"></div>TAF wird generiert…</div>
+    <div id="metar-content" style="display:none">
+
+      <!-- METAR -->
+      <div class="chart-section" style="margin-bottom:1.2rem;">
+        <div class="chart-header" style="margin-bottom:0.6rem;">
+          <span class="chart-title">METAR — Zch_Stampfenbachstrasse</span>
+          <span id="metar-time" style="font-size:0.72rem;color:var(--text3);"></span>
+        </div>
+        <div class="metar-string" id="metar-string">—</div>
+        <div style="font-size:0.7rem;color:var(--text3);margin-top:0.4rem;">Letzter Stundenmittelwert UGZ · Automatisch generiertes METAR-Format</div>
+      </div>
+
+      <!-- TAF -->
+      <div class="chart-section" style="margin-bottom:1.5rem;">
+        <div class="chart-header" style="margin-bottom:0.6rem;">
+          <span class="chart-title">TAF — LSZH Zürich</span>
+          <span style="font-size:0.72rem;color:var(--text3);">+24h Vorhersage · Open-Meteo</span>
+        </div>
+        <div class="metar-string" id="taf-string" style="line-height:2.2;">—</div>
+        <div style="font-size:0.7rem;color:var(--text3);margin-top:0.4rem;">Automatisch generiertes TAF-Format · Kein offizielles Dokument — nur zur Information</div>
+      </div>
+
+      <div class="source-note">
+        METAR: <a href="https://data.stadt-zuerich.ch/dataset/ugz_meteodaten_stundenmittelwerte" target="_blank">Stadt Zürich UGZ — Stampfenbachstrasse</a> ·
+        TAF: <a href="https://open-meteo.com" target="_blank">Open-Meteo</a>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────
+const HIST_URL = 'https://data.stadt-zuerich.ch/dataset/ugz_meteodaten_stundenmittelwerte/download/ugz_ogd_meteo_h1_2026.csv';
+// Forecast uses Open-Meteo (free, CORS-enabled, no API key)
+
+let allDays = [], charts = {}, fcData = null, fcChartObj = null;
+let currentMonth = 'all', activeTab = 'history';
+
+// ── FETCH via Anthropic API (web_search tool) ───────────────────
+// Uses claude-sonnet-4-20250514 with web_search to bypass CORS
+async function fetchViaAI(url, description) {
+  const prompt = `Fetch the raw content from this URL and return ONLY the raw text content, no explanation, no markdown, no code blocks. 
+URL: ${url}
+Return the raw file content starting from the first line. If it's a CSV, return the CSV. If it's JSON, return the JSON.`;
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!resp.ok) throw new Error(`API ${resp.status}`);
+  const data = await resp.json();
+  // Extract text from response
+  const textBlocks = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  // Also check tool results
+  const toolResults = (data.content || [])
+    .filter(b => b.type === 'tool_result')
+    .flatMap(b => b.content || [])
+    .filter(b => b.type === 'text')
+    .map(b => b.text).join('');
+  return textBlocks || toolResults || null;
+}
+
+// Direct fetch attempt first, then AI fallback
+async function smartFetch(url) {
+  // 1. Try direct (works if server has CORS headers)
+  try {
+    const r = await fetch(url);
+    if (r.ok) {
+      const t = await r.text();
+      if (t.length > 200 && !t.includes('html')) {
+        console.log('Direct fetch succeeded:', url.split('/').pop());
+        return t;
+      }
+    }
+  } catch(e) { /* silent */ }
+
+  // 2. Try CORS proxies
+  const proxies = [
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  ];
+  for (const p of proxies) {
+    try {
+      const r = await fetch(p(url));
+      if (r.ok) {
+        const t = await r.text();
+        if (t.length > 200 && !t.startsWith('<')) {
+          console.log('Proxy succeeded for:', url.split('/').pop());
+          return t;
+        }
+      }
+    } catch(e) { /* silent */ }
+  }
+
+  // 3. Use Anthropic API with web_search as final fallback
+  console.log('Trying Anthropic API for:', url.split('/').pop());
+  try {
+    return await fetchViaAI(url);
+  } catch(e) {
+    console.warn('AI fetch failed:', e.message);
+    return null;
+  }
+}
+
+// ── CSV PARSING ─────────────────────────────────────────────────
+function parseCSV(text) {
+  const sep = (text.split('\n')[0].split(';').length > text.split('\n')[0].split(',').length) ? ';' : ',';
+  const lines = text.trim().split('\n');
+  const header = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g,''));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(sep).map(v => v.trim().replace(/^"|"$/g,''));
+    if (vals.length < 2) continue;
+    const obj = {}; header.forEach((h,j) => obj[h] = vals[j]);
+    rows.push(obj);
+  }
+  return { header, rows };
+}
+
+function isLongFormat(h) { return h.includes('Parameter') && h.includes('Wert'); }
+
+// allStations discovered from data, allRawRows kept for station filtering
+let allStations = [];
+let allRawRows  = [];
+
+function aggregateLong(rows, stationFilter) {
+  // stationFilter = null means all stations averaged together
+  allRawRows = rows;
+  const stationSet = new Set();
+  rows.forEach(r => { if (r['Standort']) stationSet.add(r['Standort']); });
+  allStations = [...stationSet].sort();
+  console.log('Stations in data:', allStations.join(', '));
+
+  const map = {};
+  rows.forEach(r => {
+    if (stationFilter && r['Standort'] !== stationFilter) return;
+    const d = (r['Datum']||r['Zeit']||'').substring(0,10);
+    if (d.length < 8) return;
+    const p = (r['Parameter']||'').trim();
+    const v = parseFloat((r['Wert']||'').replace(',','.'));
+    if (!p || isNaN(v)) return;
+    if (!map[d]) map[d] = {};
+    if (!map[d][p]) map[d][p] = [];
+    map[d][p].push(v);
+  });
+  return buildDays(map);
+}
+
+function buildDays(map) {
+  const find = (params, d) => {
+    for (const n of params) {
+      if (d[n]) return d[n];
+      const k = Object.keys(d).find(k2 => k2.toLowerCase() === n.toLowerCase());
+      if (k) return d[k];
+    }
+    return null;
+  };
+  return Object.entries(map).sort((a,b)=>a[0]>b[0]?1:-1).map(([date,d]) => {
+    const T = find(['T','T_u','Lufttemperatur'],d)||[];
+    const W = find(['WG','WGS','WVs','WVv','FF','Windgeschwindigkeit'],d)||
+              Object.entries(d).find(([k,v])=>/^W[A-Z]/i.test(k)&&v.length)?.[1]||[];
+    const R = find(['RainDur','Niederschlag','RD'],d)||[];
+    const P = find(['p','p0','Luftdruck'],d)||[];
+    const H = find(['Hr','Feuchte','RH'],d)||[];
+    return {
+      date,
+      tempMean: T.length ? avg(T) : null, tempMax: T.length ? Math.max(...T) : null, tempMin: T.length ? Math.min(...T) : null,
+      windMax: W.length ? Math.max(...W) : null, windMean: W.length ? avg(W) : null,
+      rainSum: R.length ? R.reduce((a,b)=>a+b,0) : null,
+      pressureMean: P.length ? avg(P) : null, humMean: H.length ? avg(H) : null,
+    };
+  });
+}
+
+function avg(a) { return a.reduce((x,y)=>x+y,0)/a.length; }
+
+function cv(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('themeBtn').textContent = isDark ? '🌙 Dunkel' : '☀️ Hell';
+  // Redraw all charts with new colours
+  if (allDays.length) renderHistory();
+  if (document.getElementById('panel-compare').classList.contains('active')) {
+    cmpTabRendered = false;
+    renderCompareTab();
+  }
+  if (omData) { renderForecast(fcSelIdx); }
+}
+
+// Set initial theme from OS preference
+(function() {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = prefersDark ? '☀️ Hell' : '🌙 Dunkel';
+  });
+})();
+
+// ── HISTORY LOGIC ───────────────────────────────────────────────
+function toggleMetarTab() {
+  const btn = document.getElementById('eggBtn');
+  const tabBtn = document.getElementById('metar-tab-btn');
+  const active = tabBtn.style.display !== 'none';
+  if (active) {
+    // Hide tab — switch away first if currently on metar
+    tabBtn.style.display = 'none';
+    btn.classList.remove('active');
+    if (activeTab === 'metar') switchTab('history');
+  } else {
+    tabBtn.style.display = '';
+    btn.classList.add('active');
+  }
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  const tabs = ['history','compare','forecast','metar'];
+  document.querySelectorAll('.main-tab').forEach((b,i) => b.classList.toggle('active', tabs[i]===tab));
+  ['history','compare','forecast','metar'].forEach(t => {
+    const el = document.getElementById('panel-'+t);
+    if (el) el.classList.toggle('active', t===tab);
+  });
+  document.getElementById('monthControls').style.display = tab==='history' ? '' : 'none';
+  if (tab==='forecast' && !omData) loadForecast();
+  if (tab==='metar' && !metarLoaded) loadMetar();
+  if (tab==='compare') renderCompareTab();
+}
+
+function buildMonthButtons(days) {
+  const months = [...new Set(days.map(d=>d.date.substring(0,7)))].sort();
+  const ctrl = document.getElementById('monthControls');
+  ctrl.innerHTML = '<span style="font-size:0.72rem;color:var(--text3);margin-right:2px;">Zeitraum:</span>';
+  [['week','Letzte Woche'],['all','Gesamt'],...months.map(m=>{
+    const[y,mo]=m.split('-'); return [m,['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][+mo-1]+' '+y];
+  })].forEach(([val,label]) => {
+    const b = document.createElement('button');
+    b.className='month-btn'+(val===currentMonth?' active':'');
+    b.textContent=label; b.dataset.month=val;
+    b.onclick=()=>selectMonth(val);
+    ctrl.appendChild(b);
+  });
+}
+
+function selectMonth(m) {
+  currentMonth=m;
+  document.querySelectorAll('.month-btn').forEach(b=>b.classList.toggle('active',b.dataset.month===m));
+  renderHistory();
+}
+
+function filterDays(days) {
+  if (currentMonth==='week') return days.slice(-7);
+  if (currentMonth==='all') return days;
+  return days.filter(d=>d.date.startsWith(currentMonth));
+}
+
+function getIcon(max, rain) {
+  if (rain>20) return '🌧'; if (rain>5) return '🌦';
+  if (max>25) return '☀️'; if (max>18) return '⛅'; if (max>10) return '🌤'; return '❄️';
+}
+
+function renderHistory() {
+  const days = filterDays(allDays);
+  if (!days.length) return;
+  // Week cards
+  const ws=document.getElementById('weekSection'), wg=document.getElementById('weekGrid');
+  wg.innerHTML='';
+  if (currentMonth==='week') {
+    ws.style.display='block';
+    days.forEach(d=>{
+      const dt=new Date(d.date+'T12:00:00');
+      const card=document.createElement('div'); card.className='day-card';
+      card.innerHTML=`<div class="day-name">${dt.toLocaleDateString('de-CH',{weekday:'long'})}</div>
+        <div class="day-date">${dt.toLocaleDateString('de-CH',{day:'numeric',month:'short'})}</div>
+        <div class="day-icon">${getIcon(d.tempMax,d.rainSum)}</div>
+        <div><span class="day-max">${d.tempMax!==null?d.tempMax.toFixed(1)+'°':'—'}</span>
+          <span style="color:var(--text3)"> / </span>
+          <span class="day-min">${d.tempMin!==null?d.tempMin.toFixed(1)+'°':''}</span></div>
+        <div class="day-rain">${d.rainSum>0?'🌧 '+Math.round(d.rainSum)+' min':''}</div>
+        <div class="day-wind">${d.windMax!==null?'💨 '+d.windMax.toFixed(1)+' m/s':''}</div>`;
+      wg.appendChild(card);
+    });
+  } else { ws.style.display='none'; }
+
+  // KPIs
+  const kg=document.getElementById('kpiGrid'); kg.innerHTML='';
+  const vT=days.filter(d=>d.tempMean!==null), vR=days.filter(d=>d.rainSum!==null),
+        vW=days.filter(d=>d.windMax!==null), vH=days.filter(d=>d.humMean!==null);
+  const addKpi=(label,value,unit,sub)=>{
+    kg.innerHTML+=`<div class="kpi-card"><div class="kpi-label">${label}</div>
+      <div class="kpi-value">${value}<span class="kpi-unit">${unit}</span></div>
+      <div class="kpi-sub">${sub}</div></div>`;
+  };
+  if (vT.length) addKpi('Mittl. Temperatur',avg(vT.map(d=>d.tempMean)).toFixed(1),'°C',`Max: ${Math.max(...vT.map(d=>d.tempMax)).toFixed(1)}° · Min: ${Math.min(...vT.map(d=>d.tempMin)).toFixed(1)}°`);
+  if (vR.length) addKpi('Niederschlag',Math.round(vR.reduce((a,d)=>a+d.rainSum,0)),'min',`${vR.filter(d=>d.rainSum>0).length} Regentage`);
+  if (vW.length) addKpi('Max. Wind',Math.max(...vW.map(d=>d.windMax)).toFixed(1),'m/s',`Ø ${avg(vW.map(d=>d.windMax)).toFixed(1)} m/s`);
+  if (vH.length) addKpi('Rel. Feuchte',Math.round(avg(vH.map(d=>d.humMean))),'%','Tagesmittel');
+  addKpi('Zeitraum',days.length,'','Tage mit Daten');
+  // Update comparison section whenever view changes
+
+  const labels=days.map(d=>{const dt=new Date(d.date+'T12:00:00');return dt.toLocaleDateString('de-CH',{day:'numeric',month:'short'});});
+  const big=days.length>60;
+
+  destroyChart('main');
+  charts.main=new Chart(document.getElementById('mainChart').getContext('2d'),{
+    data:{labels,datasets:[
+      {type:'bar',label:'Regen (min)',data:days.map(d=>d.rainSum!==null?Math.round(d.rainSum):null),
+       backgroundColor:cv('--c-rain-dim'),borderColor:cv('--c-rain'),borderWidth:1,yAxisID:'yR',order:2},
+      {type:'line',label:'Max °C',data:days.map(d=>d.tempMax!==null?+d.tempMax.toFixed(1):null),
+       borderColor:cv('--c-tmax'),backgroundColor:cv('--c-tmax-dim'),borderWidth:2.5,pointRadius:big?0:3,
+       tension:0.4,fill:false,yAxisID:'yT',order:1},
+      {type:'line',label:'Mittl °C',data:days.map(d=>d.tempMean!==null?+d.tempMean.toFixed(1):null),
+       borderColor:cv('--c-tmean'),borderWidth:2,borderDash:[5,4],pointRadius:0,tension:0.4,
+       fill:false,yAxisID:'yT',order:1},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{autoSkip:true,maxTicksLimit:12,font:{size:11},color:cv('--tick')},grid:{color:cv('--grid')}},
+        yT:{position:'left',ticks:{color:cv('--c-tmax'),font:{size:11}},grid:{color:cv('--grid')}},
+        yR:{position:'right',ticks:{color:cv('--c-rain'),font:{size:11}},grid:{display:false}}
+      }}
+  });
+
+  destroyChart('wind');
+  charts.wind=new Chart(document.getElementById('windChart').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[{label:'Max Wind m/s',data:days.map(d=>d.windMax!==null?+d.windMax.toFixed(1):null),
+      borderColor:cv('--c-wind'),backgroundColor:cv('--c-wind').replace(')',',0.1)').replace('rgb','rgba'),
+      borderWidth:2.5,pointRadius:0,tension:0.35,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{autoSkip:true,maxTicksLimit:8,font:{size:10},color:cv('--tick')},grid:{color:cv('--grid')}},
+              y:{ticks:{color:cv('--tick'),font:{size:10}},grid:{color:cv('--grid')}}}}
+  });
+
+  const hasP=days.some(d=>d.pressureMean!==null), hasH=days.some(d=>d.humMean!==null);
+  document.getElementById('pressureSection').style.display=(hasP||hasH)?'':'none';
+  if (hasP||hasH) {
+    destroyChart('pressure');
+    const ds=[];
+    if (hasP) ds.push({label:'Druck hPa',data:days.map(d=>d.pressureMean?+d.pressureMean.toFixed(1):null),
+      borderColor:cv('--c-press'),backgroundColor:cv('--c-press').replace(')',',0.09)').replace('rgb','rgba'),borderWidth:2,pointRadius:0,tension:0.35,fill:true,yAxisID:'yP',order:2});
+    if (hasH) ds.push({label:'Feuchte %',data:days.map(d=>d.humMean?+d.humMean.toFixed(1):null),
+      borderColor:cv('--c-hum'),borderWidth:2.5,borderDash:[5,4],pointRadius:0,tension:0.35,fill:false,yAxisID:'yH',order:1});
+    const sc={x:{ticks:{autoSkip:true,maxTicksLimit:8,font:{size:10},color:cv('--tick')},grid:{color:cv('--grid')}}};
+    if (hasP) sc.yP={position:'left',ticks:{color:cv('--c-press'),font:{size:10}},grid:{color:cv('--grid')}};
+    if (hasH) sc.yH={position:'right',min:0,max:100,ticks:{color:cv('--c-hum'),font:{size:10}},grid:{display:false}};
+    charts.pressure=new Chart(document.getElementById('pressureChart').getContext('2d'),{
+      type:'line',data:{labels,datasets:ds},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:sc}
+    });
+  }
+}
+
+function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+// ── FORECAST LOGIC (Open-Meteo API — free, no key, CORS enabled) ─
+// https://open-meteo.com · Zürich: lat=47.3769, lon=8.5417
+const OM_URL = 'https://api.open-meteo.com/v1/forecast?latitude=47.3769&longitude=8.5417'
+  + '&hourly=temperature_2m,precipitation,windspeed_10m,weathercode'
+  + '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode'
+  + '&forecast_days=8&timezone=Europe%2FZurich';
+
+// WMO weather code → emoji
+function wmoIcon(code) {
+  if (code == null) return '🌤';
+  if (code === 0) return '☀️';
+  if (code <= 2) return '🌤';
+  if (code <= 3) return '⛅';
+  if (code <= 48) return '🌫';
+  if (code <= 57) return '🌦';
+  if (code <= 67) return '🌧';
+  if (code <= 77) return '🌨';
+  if (code <= 82) return '🌦';
+  if (code <= 86) return '❄️';
+  if (code <= 99) return '⛈';
+  return '🌤';
+}
+
+let omData = null; // cached Open-Meteo response
+let fcSelIdx = 0;
+let pyChartObj = null;   // currently selected forecast day
+
+async function loadForecast() {
+  document.getElementById('fc-loading').style.display = 'flex';
+  document.getElementById('fc-content').style.display = 'none';
+  document.getElementById('fc-error').style.display = 'none';
+
+  try {
+    const resp = await fetch(OM_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    omData = await resp.json();
+    document.getElementById('fc-loading').style.display = 'none';
+    document.getElementById('fc-content').style.display = 'block';
+    renderForecast(0);
+  } catch(e) {
+    document.getElementById('fc-loading').style.display = 'none';
+    document.getElementById('fc-error').style.display = 'block';
+    document.getElementById('fc-error').innerHTML =
+      'Vorhersage konnte nicht geladen werden: ' + e.message +
+      '<br><small>Bitte Internetverbindung prüfen und Seite neu laden.</small>';
+    document.getElementById('fc-content').style.display = 'block';
+  }
+}
+
+function get2025HourlyTemps(dateStr) {
+  // Extract hourly T readings for a given date from allRawRows (2025 CSV)
+  // allRawRows contains the 2025 data after load2025() populates it
+  // But allRawRows is from 2026! We need a separate store for 2025 rows.
+  // Since we only have daily aggregates in days2025, return null.
+  // The chart will show the daily mean as a reference band instead.
+  return null;
+}
+
+function renderPrevYear(selDay) {
+  const sub = document.getElementById('pySub');
+
+  const prevDay = selDay.replace('2026', '2025');
+  const dt25 = new Date(prevDay + 'T12:00:00');
+  const dateStr = dt25.toLocaleDateString('de-CH', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+  if (!days2025.length) {
+    body.innerHTML = '<div class="py-no-data" style="font-size:0.8rem;color:var(--text3)">Vorjahresdaten werden geladen…</div>';
+      return;
+  }
+
+  if (sub) sub.textContent = dateStr;
+
+  const d25 = days2025.find(d => d.date === prevDay);
+  if (!d25) {
+    body.innerHTML = '<div class="py-no-data" style="color:var(--text3)">Keine Messdaten für ' + dateStr + ' verfügbar.</div>';
+      return;
+  }
+
+  // Signal to renderForecast that 2025 data is ready — it will redraw combined chart
+  if (typeof renderForecastChart === 'function') renderForecastChart();
+}
+
+function renderForecast(selIdx) {
+  if (!omData) return;
+  fcSelIdx = selIdx;
+  const daily  = omData.daily;
+  const hourly = omData.hourly;
+  const days   = daily.time; // ['2026-04-24', '2026-04-25', ...]
+
+  // ── 8-day hero cards ─────────────────────────────────────────
+  const hero = document.getElementById('fcHero');
+  hero.innerHTML = '';
+  days.forEach((d, i) => {
+    const dt = new Date(d + 'T12:00:00');
+    const card = document.createElement('div');
+    card.className = 'fc-day' + (i === selIdx ? ' selected' : '');
+    card.onclick = () => renderForecast(i);
+    const precip = daily.precipitation_sum[i];
+    card.innerHTML =
+      '<div class="fc-dayname">' + dt.toLocaleDateString('de-CH', {weekday:'short'}) + '</div>' +
+      '<div class="fc-date">'    + dt.toLocaleDateString('de-CH', {day:'numeric',month:'short'}) + '</div>' +
+      '<div class="fc-icon">'    + wmoIcon(daily.weathercode[i]) + '</div>' +
+      '<div class="fc-tmax">'    + daily.temperature_2m_max[i].toFixed(1) + '°</div>' +
+      '<div class="fc-tmin">'    + daily.temperature_2m_min[i].toFixed(1) + '°</div>' +
+      '<div class="fc-precip">'  + (precip > 0.1 ? '🌧 ' + precip.toFixed(1) + ' mm' : '') + '</div>';
+    hero.appendChild(card);
+  });
+
+  // ── Detail for selected day ───────────────────────────────────
+  const selDay = days[selIdx] || days[0];
+  const dt2 = new Date(selDay + 'T12:00:00');
+  document.getElementById('fcDetailTitle').textContent =
+    dt2.toLocaleDateString('de-CH', {weekday:'long', day:'numeric', month:'long'});
+
+  // Filter hourly data to selected day
+  const hrTimes = hourly.time; // ['2026-04-24T00:00', ...]
+  const hrIdx = hrTimes.reduce((acc, t, i) => {
+    if (t.startsWith(selDay)) acc.push(i); return acc;
+  }, []);
+
+  const hrTemp   = hrIdx.map(i => hourly.temperature_2m[i]);
+  const hrRain   = hrIdx.map(i => hourly.precipitation[i]);
+  const hrWind   = hrIdx.map(i => hourly.windspeed_10m[i]);
+  const hrCode   = hrIdx.map(i => hourly.weathercode[i]);
+  const hrLabels = hrIdx.map(i => hrTimes[i].substring(11, 16));
+
+  // KPIs
+  const kpis = document.getElementById('fcKpis');
+  kpis.innerHTML = '';
+  const addK = (l, v, u) =>
+    kpis.innerHTML += '<div class="fc-kpi"><div class="fc-kpi-label">' + l + '</div>' +
+      '<div class="fc-kpi-val">' + v + '<span class="fc-kpi-unit"> ' + u + '</span></div></div>';
+
+  addK('Höchsttemperatur', daily.temperature_2m_max[selIdx].toFixed(1), '°C');
+  addK('Tiefsttemperatur', daily.temperature_2m_min[selIdx].toFixed(1), '°C');
+  addK('Max. Wind', daily.windspeed_10m_max[selIdx].toFixed(1), 'km/h');
+  addK('Niederschlag', (daily.precipitation_sum[selIdx] || 0).toFixed(1), 'mm');
+
+  // Hourly strip
+  const hourlyEl = document.getElementById('fcHourly');
+  hourlyEl.innerHTML = '';
+  hrIdx.forEach((_, j) => {
+    hourlyEl.innerHTML +=
+      '<div class="hourly-cell">' +
+      '<div class="hourly-time">' + hrLabels[j] + '</div>' +
+      '<div class="hourly-icon">' + wmoIcon(hrCode[j]) + '</div>' +
+      '<div class="hourly-temp">' + hrTemp[j].toFixed(1) + '°</div>' +
+      '<div class="hourly-wind">' + hrWind[j].toFixed(0) + ' km/h</div>' +
+      '</div>';
+  });
+
+  // Store hourly data for combined chart (accessible to renderForecastChart)
+  window._fcHrLabels   = hrLabels;
+  window._fcHrTemp     = hrTemp;
+  window._fcHrRain     = hrRain;
+  window._fcSelDay     = selDay;
+  window._fcHrIdx      = hrIdx;
+  window._fcHrAllTimes = hourly.time;
+
+  // Render stat cards + legend
+  renderPrevYear(selDay);
+
+  // Draw combined chart
+  renderForecastChart();
+}
+
+function renderForecastChart() {
+  const hrLabels = window._fcHrLabels;
+  const hrTemp   = window._fcHrTemp;
+  const hrRain   = window._fcHrRain;
+  const hrIdx    = window._fcHrIdx;
+  const selDay   = window._fcSelDay;
+  if (!hrLabels) return;
+
+  if (fcChartObj) { fcChartObj.destroy(); fcChartObj = null; }
+
+  // Get matching 2025 date
+  const prevDay = (selDay||'').replace('2026','2025');
+  const h25 = hourly2025[prevDay] || {};  // {0:{T,RainDur}, 1:{T,RainDur}, ...}
+
+  // Build hourly 2025 arrays aligned to same hours as 2026 forecast
+  const hrHours = hrIdx.map(i => {
+    const t = window._fcHrAllTimes ? window._fcHrAllTimes[i] : null;
+    return t ? new Date(t).getHours() : null;
+  });
+  const hrTemp25  = hrHours.map(h => h !== null && h25[h] ? h25[h].T       : null);
+  const hrRain25  = hrHours.map(h => h !== null && h25[h] ? h25[h].RainDur : null);
+  const has25T    = hrTemp25.some(v => v !== null);
+  const has25R    = hrRain25.some(v => v !== null);
+
+  const ds = [];
+
+  // ── Temperature ──────────────────────────────────────────────
+  // 2025 actual (behind, muted blue)
+  // Light orange dashed for 2025 — same hue as 2026 but transparent + dashed
+  const tmax = cv('--c-tmax');
+  const tmax25color = tmax.startsWith('#')
+    ? tmax + '99'  // hex + alpha
+    : tmax.replace('rgb(','rgba(').replace(')',',0.55)');
+  if (has25T) ds.push({
+    type: 'line', label: 'Temperatur °C 2025 (gemessen)',
+    data: hrTemp25.map(v => v !== null ? +v.toFixed(1) : null),
+    borderColor: tmax25color,
+    backgroundColor: 'transparent',
+    borderWidth: 2, borderDash: [6, 4],
+    pointRadius: 2, pointBackgroundColor: tmax25color,
+    tension: 0.4, fill: false, yAxisID: 'yT', order: 3, spanGaps: true,
+  });
+  // 2026 forecast (front, warm orange)
+  ds.push({
+    type: 'line', label: 'Temperatur °C 2026 (Vorhersage)',
+    data: hrTemp.map(v => +v.toFixed(1)),
+    borderColor: cv('--c-tmax'), backgroundColor: 'transparent',
+    borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: cv('--c-tmax'),
+    tension: 0.4, fill: false, yAxisID: 'yT', order: 1,
+  });
+
+  // ── Precipitation ─────────────────────────────────────────────
+  // 2025 rain duration (min) on secondary axis — muted
+  if (has25R) ds.push({
+    type: 'bar', label: 'Niederschlag (min) 2025 (gemessen)',
+    data: hrRain25.map(v => v !== null ? +v.toFixed(0) : null),
+    backgroundColor: 'rgba(90,158,224,0.25)', borderColor: 'rgba(90,158,224,0.6)',
+    borderWidth: 1, yAxisID: 'yR', order: 4,
+  });
+  // 2026 forecast rain mm — vivid
+  if (hrRain.some(v => v > 0)) ds.push({
+    type: 'bar', label: 'Niederschlag 2026 (mm)',
+    data: hrRain.map(v => +v.toFixed(2)),
+    backgroundColor: cv('--c-rain'), borderColor: cv('--c-rain'),
+    borderWidth: 1, yAxisID: 'yR', order: 2,
+  });
+
+  // ── Legend ────────────────────────────────────────────────────
+  const leg = document.getElementById('fcChartLegend');
+  if (leg) {
+    const items = [
+      { color: cv('--c-tmax'),  dash: false, label: 'Temp. 2026 Vorhersage' },
+    ];
+    if (has25T) items.push({ color: tmax25color, dash: true, label: 'Temp. 2025 gemessen' });
+    if (hrRain.some(v=>v>0)) items.push({ color: cv('--c-rain'), rect: true, label: 'Regen 2026 (mm)' });
+    if (has25R) items.push({ color: 'rgba(90,158,224,0.5)', rect: true, label: 'Regen 2025 (min)' });
+    leg.innerHTML = items.map(it => {
+      const swatch = it.rect
+        ? `<span style="display:inline-block;width:11px;height:11px;background:${it.color};border-radius:2px;vertical-align:middle;"></span>`
+        : it.dash
+          ? `<span style="display:inline-block;width:22px;height:0;border-top:2px dashed ${it.color};vertical-align:middle;"></span>`
+          : `<span style="display:inline-block;width:22px;height:0;border-top:2.5px solid ${it.color};vertical-align:middle;"></span>`;
+      return `<span style="display:inline-flex;align-items:center;gap:4px;">${swatch}${it.label}</span>`;
+    }).join('');
+  }
+
+  // ── Chart ─────────────────────────────────────────────────────
+  // Right axis label depends on what we have
+  const yRLabel = has25R && hrRain.some(v=>v>0) ? 'mm / min' : has25R ? 'min' : 'mm';
+  fcChartObj = new Chart(document.getElementById('fcChart').getContext('2d'), {
+    data: { labels: hrLabels, datasets: ds },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: item => {
+          const v = item.parsed.y;
+          if (v === null || v === undefined) return null;
+          return item.dataset.label + ': ' + v;
+        }, title: items => items[0].label }}
+      },
+      scales: {
+        x:  { ticks: { autoSkip: true, maxTicksLimit: 12, font:{size:10}, color: cv('--tick') }, grid: { color: cv('--grid') } },
+        yT: { position: 'left',  title: { display: true, text: '°C', font:{size:10}, color: cv('--tick') },
+              ticks: { font:{size:10}, color: cv('--tick') }, grid: { color: cv('--grid') } },
+        yR: { position: 'right', min: 0, title: { display: true, text: yRLabel, font:{size:10}, color: cv('--c-rain') },
+              ticks: { font:{size:10}, color: cv('--c-rain') }, grid: { display: false } },
+      }
+    }
+  });
+}
+
+// ── INIT ────────────────────────────────────────────────────────
+const HIST_URL_2025 = 'https://data.stadt-zuerich.ch/dataset/ugz_meteodaten_stundenmittelwerte/download/ugz_ogd_meteo_h1_2025.csv';
+let days2025 = [];  // last year's aggregated days
+
+// Load 2025 data using the same smartFetch + parse pipeline
+// hourly2025[date][hour] = { T: meanTemp, RainDur: sumRain }
+let hourly2025 = {};
+
+async function load2025() {
+  const text = await smartFetch(HIST_URL_2025);
+  if (!text) return [];
+  const { header, rows } = parseCSV(text);
+  if (!isLongFormat(header)) return [];
+
+  const dayMap = {};    // for daily aggregates (existing behaviour)
+  const hourMap = {};   // NEW: keyed by "YYYY-MM-DD"[hour 0-23]
+
+  rows.forEach(r => {
+    const raw = (r['Datum']||r['Zeit']||'');
+    const d = raw.substring(0,10);
+    if (d.length < 8) return;
+    const p = (r['Parameter']||'').trim();
+    const v = parseFloat((r['Wert']||'').replace(',','.'));
+    if (!p || isNaN(v)) return;
+
+    // Daily map (unchanged)
+    if (!dayMap[d]) dayMap[d] = {};
+    if (!dayMap[d][p]) dayMap[d][p] = [];
+    dayMap[d][p].push(v);
+
+    // Hourly map — parse hour from timestamp (format: "2025-05-06T14:00" or "2025-05-06 14:00")
+    const timePart = raw.length >= 13 ? raw.substring(11,13) : null;
+    const hour = timePart ? parseInt(timePart, 10) : null;
+    if (hour === null || isNaN(hour)) return;
+    if (!hourMap[d]) hourMap[d] = {};
+    if (!hourMap[d][hour]) hourMap[d][hour] = {};
+    if (!hourMap[d][hour][p]) hourMap[d][hour][p] = [];
+    hourMap[d][hour][p].push(v);
+  });
+
+  // Build hourly2025: average each parameter per hour
+  hourly2025 = {};
+  Object.entries(hourMap).forEach(([date, hours]) => {
+    hourly2025[date] = {};
+    Object.entries(hours).forEach(([hour, params]) => {
+      const T = params['T'] || params['T_u'] || params['Lufttemperatur'] || [];
+      const R = params['RainDur'] || params['Niederschlag'] || [];
+      hourly2025[date][+hour] = {
+        T:       T.length ? avg(T) : null,
+        RainDur: R.length ? R.reduce((a,b)=>a+b,0) : null,
+      };
+    });
+  });
+
+  return buildDays(dayMap);
+}
+
+// Find 2025 days that correspond to the same calendar period as the current filtered view
+function matchingDays2025(days2026) {
+  if (!days2025.length || !days2026.length) return [];
+  // Shift 2026 dates back by exactly 1 year to get equivalent 2025 dates
+  return days2026.map(d => {
+    const shifted = d.date.replace(/^2026/, '2025');
+    return days2025.find(d25 => d25.date === shifted) || null;
+  });
+}
+
+function renderComparison(days2026) {
+  const body = document.getElementById('cmpBody');
+  const matched = matchingDays2025(days2026).filter(Boolean);
+  if (!matched.length) {
+    body.innerHTML = '<div class="cmp-loading" style="color:var(--text3)">Keine Vorjahresdaten für diesen Zeitraum verfügbar.</div>';
+    return;
+  }
+
+  const valid26T = days2026.filter(d => d.tempMax !== null);
+  const valid25T = matched.filter(d => d.tempMax !== null);
+  const valid26R = days2026.filter(d => d.rainSum !== null);
+  const valid25R = matched.filter(d => d.rainSum !== null);
+
+  // Match only days where BOTH years have data
+  const paired = days2026.map(d => {
+    const shifted = d.date.replace(/^2026/, '2025');
+    const d25 = days2025.find(x => x.date === shifted);
+    return d25 ? { d26: d, d25 } : null;
+  }).filter(Boolean);
+
+  const p26TMax = paired.filter(p => p.d26.tempMax !== null && p.d25.tempMax !== null);
+  const p26TMean = paired.filter(p => p.d26.tempMean !== null && p.d25.tempMean !== null);
+  const p26R = paired.filter(p => p.d26.rainSum !== null && p.d25.rainSum !== null);
+
+  function delta(v26, v25, unit, higherIsBetter) {
+    const diff = v26 - v25;
+    const sign = diff > 0 ? '+' : '';
+    const cls = Math.abs(diff) < 0.2 ? 'flat' : (diff > 0) === (higherIsBetter !== false) ? 'up' : 'down';
+    return `<span class="cmp-delta ${cls}">${sign}${diff.toFixed(1)}${unit}</span>`;
+  }
+
+  function card(label, val26, val25, unit, higherIsBetter) {
+    if (val26 === null) return '';
+    const diff = val26 - val25;
+    const sign = diff >= 0 ? '+' : '';
+    const cls = Math.abs(diff) < 0.2 ? 'flat' : (diff > 0) === (higherIsBetter !== false) ? 'up' : 'down';
+    return `<div class="cmp-card">
+      <div class="cmp-card-label">${label}</div>
+      <div class="cmp-row">
+        <span class="cmp-year">2026</span>
+        <span class="cmp-val">${val26.toFixed(1)}<span style="font-size:0.8rem;color:var(--text3)">${unit}</span></span>
+      </div>
+      <div class="cmp-row">
+        <span class="cmp-year">2025</span>
+        <span class="cmp-val" style="font-size:0.95rem;color:var(--text2)">${val25.toFixed(1)}<span style="font-size:0.75rem;color:var(--text3)">${unit}</span></span>
+      </div>
+      <span class="cmp-delta ${cls}">${sign}${diff.toFixed(1)}${unit} ggü. Vorjahr</span>
+    </div>`;
+  }
+
+  const tMax26 = p26TMax.length ? Math.max(...p26TMax.map(p=>p.d26.tempMax)) : null;
+  const tMax25 = p26TMax.length ? Math.max(...p26TMax.map(p=>p.d25.tempMax)) : null;
+  const tMean26 = p26TMean.length ? avg(p26TMean.map(p=>p.d26.tempMean)) : null;
+  const tMean25 = p26TMean.length ? avg(p26TMean.map(p=>p.d25.tempMean)) : null;
+  const rain26  = p26R.length ? p26R.reduce((a,p)=>a+p.d26.rainSum,0) : null;
+  const rain25  = p26R.length ? p26R.reduce((a,p)=>a+p.d25.rainSum,0) : null;
+
+  // Update subtitle
+  const sub = document.getElementById('cmpSub');
+  if (sub) sub.textContent = `Gleicher Zeitraum im Vorjahr (${p26TMax.length} Tage mit Daten) · Max. Temp · Durchschnitt · Niederschlag`;
+
+  body.innerHTML = `<div class="cmp-grid">
+    ${tMax26!==null  ? card('Höchsttemperatur', tMax26,  tMax25,  '°C', false) : ''}
+    ${tMean26!==null ? card('Ø Temperatur',      tMean26, tMean25, '°C', false) : ''}
+    ${rain26!==null  ? card('Niederschlag (gesamt)', rain26/60, rain25/60, ' mm', false) : ''}
+  </div>`;
+}
+
+let cmpTabRendered = false;
+let cmpTabCharts = {};
+let cmpMonth = 'all';
+
+function buildCmpMonthButtons() {
+  if (!allDays.length) return;
+  const months = [...new Set(allDays.map(d => d.date.substring(0,7)))].sort();
+  const ctrl = document.getElementById('cmpMonthControls');
+  if (!ctrl) return;
+  // Remove existing month buttons (keep Gesamt)
+  [...ctrl.querySelectorAll('[data-cmp-month]:not([data-cmp-month="all"])')].forEach(b => b.remove());
+  months.forEach(m => {
+    const [y, mo] = m.split('-');
+    const b = document.createElement('button');
+    b.className = 'month-btn' + (m === cmpMonth ? ' active' : '');
+    b.textContent = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][+mo-1] + ' ' + y;
+    b.dataset.cmpMonth = m;
+    b.onclick = () => selectCmpMonth(m);
+    ctrl.appendChild(b);
+  });
+}
+
+function selectCmpMonth(m) {
+  cmpMonth = m;
+  document.querySelectorAll('[data-cmp-month]').forEach(b => b.classList.toggle('active', b.dataset.cmpMonth === m));
+  cmpTabRendered = false;
+  renderCompareTab();
+}
+
+function renderCompareTab() {
+  // Build aligned daily series from Jan 1 to latest available date in 2026
+  // For each day in allDays (2026), find matching day in days2025
+  if (!allDays.length) return;
+
+  // If 2025 not loaded yet, show loading state and retry when ready
+  if (!days2025.length) {
+    document.getElementById('cmp-tab-loading').style.display = 'flex';
+    document.getElementById('cmp-tab-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('cmp-tab-loading').style.display = 'none';
+  document.getElementById('cmp-tab-content').style.display = 'block';
+
+  // Build full aligned series: all days from allDays (entire 2026 dataset)
+  const filteredDays = cmpMonth === 'all' ? allDays : allDays.filter(d => d.date.startsWith(cmpMonth));
+  const series = filteredDays.map(d => {
+    const d25 = days2025.find(x => x.date === d.date.replace('2026','2025'));
+    return {
+      label: (() => { const dt = new Date(d.date+'T12:00:00'); return dt.toLocaleDateString('de-CH',{day:'numeric',month:'short'}); })(),
+      tMax26:  d.tempMax,   tMax25:  d25?.tempMax  ?? null,
+      tMean26: d.tempMean,  tMean25: d25?.tempMean ?? null,
+      rain26:  d.rainSum,   rain25:  d25?.rainSum  ?? null,
+    };
+  });
+
+  const labels   = series.map(s => s.label);
+  const big = series.length > 60;
+  const pr = big ? 0 : 2;
+
+  // Rain: rainSum is summed minutes across all station-hours. Normalise to minutes per day per station.
+  // Count stations: allStations.length (usually ~5). Divide to get avg station rain minutes.
+  const stationCount = allStations.length || 1;
+
+  function makeChart(canvasId, key26, key25, color, type) {
+    destroyChart('cmp_'+canvasId);
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    // For rain bars: normalise by station count so scale is sensible minutes
+    const isRain = type === 'bar';
+    const norm = isRain ? stationCount : 1;
+    const unit = isRain ? ' min' : '°C';
+
+    // 2026 dataset — solid, full color (matches Verlauf tab)
+    const ds26 = {
+      type: isRain ? 'bar' : 'line',
+      label: '2026',
+      data: series.map(s => s[key26] !== null ? +(s[key26]/norm).toFixed(1) : null),
+      order: 1,
+    };
+    if (isRain) {
+      ds26.backgroundColor = color;
+      ds26.borderColor = color;
+      ds26.borderWidth = 1;
+    } else {
+      ds26.borderColor = color;
+      ds26.backgroundColor = 'transparent';
+      ds26.borderWidth = 2.5;
+      ds26.pointRadius = pr;
+      ds26.tension = 0.35;
+      ds26.fill = false;
+    }
+
+    // 2025 dataset — same color but dashed/faded (matches Verlauf tab style)
+    const ds25 = {
+      type: isRain ? 'bar' : 'line',
+      label: '2025',
+      data: series.map(s => s[key25] !== null ? +(s[key25]/norm).toFixed(1) : null),
+      order: 2,
+    };
+    if (isRain) {
+      // Faded bars behind 2026
+      const faded = color.startsWith('rgba') ? color : color + '66';
+      ds25.backgroundColor = cv('--c-rain-dim');
+      ds25.borderColor = cv('--c-rain-dim');
+      ds25.borderWidth = 1;
+    } else {
+      // Same color, dashed, no fill — exactly like Verlauf
+      ds25.borderColor = color;
+      ds25.backgroundColor = 'transparent';
+      ds25.borderWidth = 1.5;
+      ds25.borderDash = [5, 4];
+      ds25.pointRadius = 0;
+      ds25.tension = 0.35;
+      ds25.fill = false;
+    }
+
+    cmpTabCharts['cmp_'+canvasId] = new Chart(ctx, {
+      data: { labels, datasets: [ds26, ds25] },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ display:true, position:'top', align:'end',
+            labels:{ boxWidth:20, boxHeight:2, font:{size:11}, color:cv('--tick'),
+              generateLabels: chart => {
+                const isBar = type === 'bar';
+                return [
+                  { text:'2026', strokeStyle: color, fillStyle: color, lineWidth: isBar ? 0 : 2, lineDash:[], pointStyle: isBar ? 'rect' : 'line' },
+                  { text:'2025', strokeStyle: isBar ? cv('--c-rain-dim') : color, fillStyle: isBar ? cv('--c-rain-dim') : 'transparent', lineWidth: isBar ? 0 : 1.5, lineDash: isBar ? [] : [5,4], pointStyle: isBar ? 'rect' : 'line' },
+                ];
+              }
+            }
+          },
+          tooltip:{ callbacks:{ title: items => items[0].label,
+            label: item => `${item.dataset.label}: ${item.parsed.y !== null ? item.parsed.y : '—'}${unit}` }}
+        },
+        scales:{
+          x:{ ticks:{autoSkip:true, maxTicksLimit:14, font:{size:10}, color:cv('--tick')}, grid:{color:cv('--grid')} },
+          y:{ ticks:{font:{size:10}, color:cv('--tick')}, grid:{color:cv('--grid')} }
+        }
+      }
+    });
+  }
+
+  function destroyChart(key) {
+    if (cmpTabCharts[key]) { cmpTabCharts[key].destroy(); delete cmpTabCharts[key]; }
+  }
+
+  makeChart('cmpTMaxChart',  'tMax26',  'tMax25',  cv('--c-tmax'),  'line');
+  makeChart('cmpTMeanChart', 'tMean26', 'tMean25', cv('--c-tmean'), 'line');
+  makeChart('cmpRainChart',  'rain26',  'rain25',  cv('--c-rain'),  'bar');
+  cmpTabRendered = true;
+}
+
+// ── METAR + TAF TAB ──────────────────────────────────────────
+let metarLoaded = false;
+let tafChart = null;
+const STATION = 'Zch_Stampfenbachstrasse';
+
+function degToCompass(deg) {
+  if (deg === null || deg === undefined) return 'VRB';
+  const d = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return d[Math.round(deg / 22.5) % 16];
+}
+function humToVis(hum) {
+  if (!hum) return '9999';
+  if (hum > 97) return '0800'; if (hum > 93) return '2000';
+  if (hum > 88) return '4000'; if (hum > 75) return '6000';
+  return '9999';
+}
+function wxCode(rain, temp) {
+  if (rain > 30) return temp < 2 ? 'SN' : 'RA';
+  if (rain > 5)  return temp < 2 ? '-SN' : '-RA';
+  return '';
+}
+function cloudCode(hum) {
+  if (!hum) return 'SKC';
+  if (hum > 90) return 'OVC016'; if (hum > 75) return 'BKN025';
+  if (hum > 55) return 'SCT040'; return 'FEW050';
+}
+
+// ── METAR from last UGZ observation ──────────────────────────
+function buildMetar(obs) {
+  const T       = obs.T       ?? null;
+  const Hr      = obs.Hr      ?? null;
+  const p       = obs.p       ?? null;
+  const WG      = obs.WG      ?? null;
+  const WD      = obs.WD      ?? null;
+  const RainDur = obs.RainDur ?? null;
+  const datetime = obs.datetime;
+  const dt = new Date(datetime);
+  const day = String(dt.getUTCDate()).padStart(2,'0');
+  const hr  = String(dt.getUTCHours()).padStart(2,'0');
+  const min = String(dt.getUTCMinutes()).padStart(2,'0');
+  const wDir = WD !== null ? String(Math.round((WD||0)/10)*10).padStart(3,'0') : 'VRB';
+  const wKt  = WG !== null ? String(Math.round(WG * 1.944)).padStart(2,'0') : '00';
+  const vis  = humToVis(Hr);
+  const wx   = wxCode(RainDur||0, T||0);
+  const cl   = cloudCode(Hr);
+  const tt   = T !== null ? String(Math.round(T)).padStart(2,'0') : '//';
+  const td   = (Hr !== null && T !== null) ? String(Math.round(T - (100-Hr)/5)).padStart(2,'0') : '//';
+  const qnh  = p !== null ? 'Q' + String(Math.round(p)) : 'Q////';
+  return ['METAR LSZH', `${day}${hr}${min}Z`, `${wDir}${wKt}KT`, vis, wx, cl, `${tt}/${td}`, qnh, 'NOSIG=']
+    .filter(Boolean).join(' ');
+}
+
+// ── TAF from Open-Meteo hourly ────────────────────────────────
+function safeVal(arr, idx, fallback=0) {
+  const v = arr && arr[idx]; return (v !== null && v !== undefined) ? v : fallback;
+}
+
+function buildTAF(omData) {
+  const hourly = omData.hourly;
+  const now    = new Date();
+  const issDay = String(now.getUTCDate()).padStart(2,'0');
+  const issHr  = String(now.getUTCHours()).padStart(2,'0');
+
+  const curIdx = hourly.time.findIndex(t => new Date(t) >= now);
+  const start  = curIdx >= 0 ? curIdx : 0;
+  const end    = Math.min(start + 25, hourly.time.length);
+
+  const fromDt = new Date(hourly.time[start]);
+  const toDt   = new Date(hourly.time[end - 1]);
+  const fmt = dt => String(dt.getUTCDate()).padStart(2,'0') + String(dt.getUTCHours()).padStart(2,'0');
+  const p2 = v => String(Math.max(0, Math.round(v))).padStart(2,'0');
+  const p3 = v => String(Math.max(0, Math.round(v))).padStart(3,'0');
+
+  const lines = [];
+  lines.push(`TAF LSZH ${issDay}${issHr}00Z ${fmt(fromDt)}/${fmt(toDt)}`);
+
+  const baseWspd = safeVal(hourly.windspeed_10m, start);
+  const baseWdir = safeVal(hourly.winddirection_10m, start, null);
+  const baseWkt  = Math.round(baseWspd / 3.6 * 1.944);
+  const baseWdir3 = baseWdir !== null ? p3(Math.round(baseWdir/10)*10) : 'VRB';
+  const basePrecip = safeVal(hourly.precipitation, start);
+  const baseTemp   = safeVal(hourly.temperature_2m, start, 10);
+  const baseWcode  = safeVal(hourly.weathercode, start, 0);
+  const baseWx     = wxCode(basePrecip * 60, baseTemp);
+  const baseCl     = wmoCloud(baseWcode);
+  const baseT      = Math.round(baseTemp);
+  const baseTd     = Math.round(baseTemp - 5);
+
+  lines.push(`     ${baseWdir3}${p2(baseWkt)}KT 9999 ${baseWx} ${baseCl} ${p2(baseT)}/${p2(baseTd)}`);
+
+  let prevRain = basePrecip > 0.5;
+  let prevWind = baseWkt;
+
+  for (let i = start + 1; i < end; i++) {
+    const precip = safeVal(hourly.precipitation, i);
+    const wspd   = safeVal(hourly.windspeed_10m, i);
+    const wdir   = safeVal(hourly.winddirection_10m, i, null);
+    const wcode  = safeVal(hourly.weathercode, i, 0);
+    const temp   = safeVal(hourly.temperature_2m, i, 10);
+    const rain   = precip > 0.5;
+    const wkt    = Math.round(wspd / 3.6 * 1.944);
+
+    if (rain !== prevRain || Math.abs(wkt - prevWind) > 8) {
+      const grpType  = precip > 2 ? 'TEMPO' : 'BECMG';
+      const grpWx    = wxCode(precip * 60, temp);
+      const grpCl    = wmoCloud(wcode);
+      const grpWdir3 = wdir !== null ? p3(Math.round(wdir/10)*10) : 'VRB';
+      const vis      = precip > 2 ? '4000' : '9999';
+      const dtS      = new Date(hourly.time[i]);
+      const dtE      = new Date(hourly.time[Math.min(i+3, end-1)]);
+      lines.push(`     ${grpType} ${fmt(dtS)}/${fmt(dtE)} ${grpWdir3}${p2(wkt)}KT ${vis} ${grpWx} ${grpCl}`.trimEnd());
+      prevRain = rain; prevWind = wkt; i += 2;
+    }
+  }
+
+  const temps = hourly.temperature_2m.slice(start, end).filter(v => v !== null && v !== undefined);
+  if (temps.length) {
+    const maxT = Math.round(Math.max(...temps));
+    const minT = Math.round(Math.min(...temps));
+    lines.push(`     TX${p2(maxT)}/Z TN${p2(minT)}Z=`);
+  } else {
+    lines[lines.length - 1] += '=';
+  }
+  return lines;
+}
+
+function wmoCloud(code) {
+  if (!code) return 'FEW050';
+  if (code === 0 || code === 1) return 'SKC';
+  if (code <= 3) return 'FEW040';
+  if (code <= 48) return 'OVC004';
+  if (code <= 57) return 'BKN015 -RA';
+  if (code <= 67) return 'OVC010 RA';
+  if (code <= 77) return 'OVC010 SN';
+  if (code <= 82) return 'BKN015 RA';
+  if (code <= 86) return 'OVC008 SN';
+  if (code <= 99) return 'OVC008 TSRA';
+  return 'SCT040';
+}
+
+function colourCode(str) {
+  // Colour-code METAR/TAF groups by splitting on spaces
+  return str
+    .replace(/(TAF LSZH|METAR LSZH)/, '<span class="hl">$1</span>')
+    .replace(/(\d{6}Z)/, '<span style="color:var(--text3)">$1</span>')
+    .replace(/ (BECMG|TEMPO|NOSIG) /g, ' <span style="color:var(--accent);font-weight:600">$1</span> ')
+    .replace(/(TX\d+\/Z|TN\d+Z)/g, '<span style="color:var(--c-tmax)">$1</span>')
+    .replace(/((?:VRB|\d{3})\d{2}(?:G\d{2})?KT)/g, '<span style="color:var(--c-wind)">$1</span>')
+    .replace(/\b(-?(?:RA|SN|DZ|TSRA|BR|FG))\b/g, '<span style="color:var(--c-rain)">$1</span>')
+    .replace(/\b(SKC|FEW\d*|SCT\d*|BKN\d*|OVC\d*)\b/g, '<span style="color:var(--text2)">$1</span>')
+    .replace(/\b(\d{2}\/\d{2})\b/g, '<span style="color:var(--c-tmax)">$1</span>')
+    .replace(/\b(Q\d{4})\b/g, '<span style="color:var(--c-press)">$1</span>');
+}
+
+function renderMetarGrid(obs) {
+  const T       = obs.T       ?? null;
+  const Hr      = obs.Hr      ?? null;
+  const p       = obs.p       ?? null;
+  const WG      = obs.WG      ?? null;
+  const WD      = obs.WD      ?? null;
+  const RainDur = obs.RainDur ?? null;
+  const StrGlo  = obs.StrGlo  ?? null;
+  const wKt = WG !== null ? (WG * 1.944).toFixed(1) : '—';
+  const grid = document.getElementById('metar-grid');
+  const cards = [
+    { icon:'🌡️', label:'Temperatur',   val: T       !== null ? T.toFixed(1)        : '—', unit:'°C',   sub: (Hr !== null && T !== null) ? `Taupunkt ${(T-(100-Hr)/5).toFixed(1)}°C` : '' },
+    { icon:'💧', label:'Rel. Feuchte', val: Hr      !== null ? Math.round(Hr)      : '—', unit:'%',    sub: Hr !== null ? cloudCode(Hr).split(' ')[0] : '' },
+    { icon:'💨', label:'Wind',         val: WG      !== null ? WG.toFixed(1)       : '—', unit:'m/s',  sub: `${degToCompass(WD)} · ${wKt} kt` },
+    { icon:'🔵', label:'Luftdruck',    val: p       !== null ? Math.round(p)       : '—', unit:'hPa',  sub: p !== null ? `QNH Q${Math.round(p)}` : '' },
+    { icon:'🌧', label:'Regen',        val: RainDur !== null ? Math.round(RainDur) : '—', unit:'min',  sub: wxCode(RainDur||0, T||10) || 'kein Niederschlag' },
+    { icon:'☀️', label:'Strahlung',    val: StrGlo  !== null ? Math.round(StrGlo)  : '—', unit:'W/m²', sub: (StrGlo||0)>600?'Sonnig':(StrGlo||0)>200?'Bewölkt':'Bedeckt' },
+  ];
+  grid.innerHTML = cards.map(c =>
+    `<div class="metar-card">
+      <div class="metar-card-icon">${c.icon}</div>
+      <div class="metar-card-label">${c.label}</div>
+      <div class="metar-card-val">${c.val}<span class="metar-card-unit"> ${c.unit}</span></div>
+      <div class="metar-card-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+function renderTAFChart(omData) {
+  if (tafChart) { tafChart.destroy(); tafChart = null; }
+  const hourly = omData.hourly;
+  const now = new Date();
+  const start = Math.max(0, hourly.time.findIndex(t => new Date(t) >= now));
+  const end   = Math.min(start + 25, hourly.time.length);
+  const labels = hourly.time.slice(start, end).map(t => {
+    const dt = new Date(t);
+    return String(dt.getHours()).padStart(2,'0') + ':00';
+  });
+  const temps  = hourly.temperature_2m.slice(start, end).map(v => v ?? null);
+  const winds  = hourly.windspeed_10m.slice(start, end).map(v => v != null ? +(v/3.6*1.944).toFixed(1) : null);
+  const rain   = hourly.precipitation.slice(start, end).map(v => v ?? null);
+
+  tafChart = new Chart(document.getElementById('taf-chart').getContext('2d'), {
+    data: { labels, datasets: [
+      { type:'line', label:'Temperatur °C',
+        data: temps.map(v => v != null ? +v.toFixed(1) : null),
+        borderColor: cv('--c-tmax'), backgroundColor: cv('--c-tmax-dim'),
+        borderWidth: 2.5, pointRadius: 3, tension: 0.4, fill: true, yAxisID: 'yT', order: 1 },
+      { type:'line', label:'Wind (kt)',
+        data: winds,
+        borderColor: cv('--c-wind'), backgroundColor: 'transparent',
+        borderWidth: 2, borderDash: [4,3], pointRadius: 0, tension: 0.35, fill: false, yAxisID: 'yW', order: 2 },
+      { type:'bar',  label:'Regen (mm)',
+        data: rain.map(v => v != null ? +v.toFixed(2) : null),
+        backgroundColor: cv('--c-rain'), borderColor: cv('--c-rain'),
+        borderWidth: 1, yAxisID: 'yR', order: 3 },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false } },
+      scales: {
+        x:  { ticks: { autoSkip: true, maxTicksLimit: 13, font: {size:10}, color: cv('--tick') }, grid: { color: cv('--grid') } },
+        yT: { position: 'left',  title: { display:true, text:'°C', font:{size:10}, color:cv('--tick') },
+              ticks: { color: cv('--c-tmax'), font:{size:10} }, grid: { color: cv('--grid') } },
+        yW: { position: 'right', title: { display:true, text:'kt', font:{size:10}, color:cv('--c-wind') },
+              ticks: { color: cv('--c-wind'), font:{size:10} }, grid: { display: false } },
+        yR: { position: 'right', min: 0, title: { display:true, text:'mm', font:{size:10}, color:cv('--c-rain') },
+              ticks: { color: cv('--c-rain'), font:{size:10} }, grid: { display: false },
+              afterSetDimensions: axis => { axis.right = axis.chart.width - 55; } },
+      }
+    }
+  });
+}
+
+async function loadMetar() {
+  document.getElementById('metar-loading').style.display = 'flex';
+  document.getElementById('metar-content').style.display = 'none';
+
+  try {
+    // ── Load METAR from UGZ Stampfenbachstrasse ──────────────
+    let rows = allRawRows.length ? allRawRows : null;
+    if (!rows) {
+      const text = await smartFetch(HIST_URL);
+      if (!text) throw new Error('UGZ-Daten nicht verfügbar');
+      rows = parseCSV(text).rows;
+    }
+    const stRows = rows.filter(r => (r['Standort']||'') === STATION);
+    if (!stRows.length) throw new Error('Station Stampfenbachstrasse nicht gefunden');
+
+    // Group by datetime → last obs
+    const dtMap = {};
+    stRows.forEach(r => {
+      const dt = (r['Datum']||r['Zeit']||'').trim(); if (!dt) return;
+      if (!dtMap[dt]) dtMap[dt] = { datetime: dt };
+      const p = (r['Parameter']||'').trim(), v = parseFloat((r['Wert']||'').replace(',','.'));
+      if (!isNaN(v)) dtMap[dt][p] = v;
+    });
+    const sorted = Object.values(dtMap).sort((a,b) => a.datetime > b.datetime ? 1 : -1);
+    // Normalize: ensure all expected keys exist as null (not undefined) so .toFixed() is safe
+    const raw = sorted[sorted.length - 1];
+    const latest = {
+      datetime: raw.datetime,
+      T:       raw['T']       ?? null,
+      Hr:      raw['Hr']      ?? null,
+      p:       raw['p']       ?? null,
+      WG:      raw['WG']      ?? null,
+      WD:      raw['WD']      ?? null,
+      RainDur: raw['RainDur'] ?? null,
+      StrGlo:  raw['StrGlo']  ?? null,
+    };
+
+
+    const dt = new Date(latest.datetime);
+    document.getElementById('metar-time').textContent =
+      dt.toLocaleDateString('de-CH', {weekday:'short', day:'numeric', month:'short'}) +
+      ' ' + String(dt.getHours()).padStart(2,'0') + ':00 LT';
+    try {
+      document.getElementById('metar-string').innerHTML = colourCode(buildMetar(latest));
+    } catch(e) { document.getElementById('metar-string').textContent = 'METAR error: '+e.message; console.error(e); }
+
+    // ── Load TAF from Open-Meteo ──────────────────────────────
+    let om = omData;
+    if (!om) {
+      const r = await fetch(OM_URL + '&hourly=winddirection_10m,weathercode');
+      if (r.ok) om = await r.json();
+    }
+    // Add winddirection + weathercode if missing (fetch extra fields)
+    if (om && !om.hourly.winddirection_10m) {
+      try {
+        const extra = await fetch('https://api.open-meteo.com/v1/forecast?latitude=47.3769&longitude=8.5417&hourly=winddirection_10m,weathercode&forecast_days=2&timezone=Europe%2FZurich');
+        if (extra.ok) {
+          const ed = await extra.json();
+          om.hourly.winddirection_10m = ed.hourly.winddirection_10m;
+          om.hourly.weathercode = ed.hourly.weathercode;
+        }
+      } catch(e) {}
+    }
+
+    if (om) {
+      try {
+        const tafLines = buildTAF(om);
+        document.getElementById('taf-string').innerHTML = tafLines.map(l => colourCode(l)).join('<br>');
+      } catch(e) { document.getElementById('taf-string').textContent = 'TAF error: '+e.message; console.error(e); }
+    } else {
+      document.getElementById('taf-string').textContent = 'TAF-Daten nicht verfügbar';
+    }
+
+    metarLoaded = true;
+    document.getElementById('metar-loading').style.display = 'none';
+    document.getElementById('metar-content').style.display = 'block';
+
+  } catch(e) {
+    document.getElementById('metar-loading').innerHTML =
+      `<div style="color:var(--text3);font-size:0.85rem;">Fehler: ${e.message}</div>`;
+  }
+}
+
+async function init() {
+  const text = await smartFetch(HIST_URL);
+  document.getElementById('hist-loading').style.display='none';
+  document.getElementById('hist-content').style.display='block';
+  if (!text) {
+    document.getElementById('hist-error').style.display='block';
+    document.getElementById('hist-error').textContent='Verlaufsdaten konnten nicht geladen werden.';
+    return;
+  }
+  const {header, rows} = parseCSV(text);
+  console.log('Hist headers:', header.slice(0,6).join(', '));
+  allDays = isLongFormat(header) ? aggregateLong(rows, null) : (()=>{
+    // wide format fallback
+    const hL=header.map(h=>h.toLowerCase());
+    const tI=hL.findIndex(h=>h==='t'||h==='lufttemperatur'), wI=hL.findIndex(h=>/^wg|^wvs/.test(h));
+    const rI=hL.findIndex(h=>/rain|regen/.test(h)), pI=hL.findIndex(h=>h==='p'||h==='luftdruck');
+    const hI=hL.findIndex(h=>h==='hr'||h==='feuchte'), dI=hL.findIndex(h=>/datum|date|zeit/.test(h));
+    const map={};
+    rows.forEach(r=>{
+      const d=(header[dI]?r[header[dI]]:'').substring(0,10); if(d.length<8)return;
+      if(!map[d])map[d]={};
+      const push=(k,i)=>{if(i<0)return;const v=parseFloat((r[header[i]]||'').replace(',','.'));
+        if(!isNaN(v)){if(!map[d][k])map[d][k]=[];map[d][k].push(v);}};
+      push('T',tI);push('WG',wI);push('RainDur',rI);push('p',pI);push('Hr',hI);
+    });
+    return buildDays(map);
+  })();
+
+  if (!allDays.length) {
+    document.getElementById('hist-error').style.display='block';
+    document.getElementById('hist-error').textContent='Daten geladen, aber keine auswertbaren Messwerte gefunden. Konsole (F12) prüfen.';
+    return;
+  }
+
+  const latest=allDays[allDays.length-1]?.date||'';
+  if (latest) currentMonth=latest.substring(0,7);
+  buildMonthButtons(allDays);
+  buildCmpMonthButtons();
+  if (allStations.length > 1) buildStationButtons(allStations);
+  renderHistory();
+  // Load previous year data in background — doesn't block current view
+  load2025().then(d => {
+    days2025 = d;
+    if (activeTab === 'compare') renderCompareTab();
+    // Always re-render prevYear section — user may already be on forecast tab
+    if (omData) {
+      const selDay = omData.daily.time[fcSelIdx] || omData.daily.time[0];
+      renderPrevYear(selDay);
+    }
+  }).catch(() => {
+    document.getElementById('pyBody').innerHTML = '<div class="py-no-data" style="color:var(--text3)">Vorjahresdaten konnten nicht geladen werden.</div>';
+  });
+}
+function buildStationButtons(stations) {
+  const bar = document.getElementById('stationBar');
+  bar.style.display = 'flex';
+  // Remove existing station buttons (keep "Alle")
+  [...bar.querySelectorAll('[data-station]:not([data-station=""])')].forEach(b => b.remove());
+  stations.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'month-btn';
+    b.dataset.station = s;
+    // Shorten display name: remove "Zch_" prefix
+    b.textContent = s.replace(/^Zch_/,'').replace(/_/g,' ');
+    b.onclick = () => selectStation(b, s);
+    bar.appendChild(b);
+  });
+}
+
+function selectStation(btn, station) {
+  document.querySelectorAll('#stationBar .month-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (allRawRows.length) {
+    allDays = aggregateLong(allRawRows, station || null);
+    renderHistory();
+  }
+}
+
+init();
+
+// ── TILE MAP (no external library) ───────────────────────────────
+const UGZ_STATIONS = [
+  { name: 'Stampfenbachstrasse', lat: 47.3811, lon: 8.5393, main: true,  desc: 'Stadtklima · 444 m ü.M.',     color: '#1d9e75' },
+  { name: 'Schimmelstrasse',     lat: 47.3728, lon: 8.5226, main: false, desc: 'Stadtklima · 430 m ü.M.',     color: '#2d5a8e' },
+  { name: 'Rosengartenstrasse',  lat: 47.3932, lon: 8.5261, main: false, desc: 'Verkehrsmessung · 443 m ü.M.',color: '#2d5a8e' },
+  { name: 'Heubeeribüel',        lat: 47.3681, lon: 8.5919, main: false, desc: 'Vorortstation · 560 m ü.M.',  color: '#2d5a8e' },
+  { name: 'Käferberg',           lat: 47.4003, lon: 8.5103, main: false, desc: 'Hintergrundstation · 600 m ü.M.', color: '#2d5a8e' },
+];
+const FC_POINT = { lat: 47.3769, lon: 8.5417 };
+
+// Mercator projection helpers
+function latLonToTile(lat, lon, z) {
+  const x = Math.floor((lon + 180) / 360 * Math.pow(2, z));
+  const y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+  return { x, y };
+}
+function latLonToPixel(lat, lon, z, tileX, tileY, tileSize) {
+  const n = Math.pow(2, z);
+  const px = (lon + 180) / 360 * n * tileSize - tileX * tileSize;
+  const latRad = lat * Math.PI / 180;
+  const py = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n * tileSize - tileY * tileSize;
+  return { px, py };
+}
+
+function buildTileMap(containerId, centerLat, centerLon, zoom, markers, circleMarker) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  const W = wrap.offsetWidth || 700;
+  const H = wrap.offsetHeight || 300;
+  const TILE = 256;
+
+  const centerTile = latLonToTile(centerLat, centerLon, zoom);
+  // How many tiles to cover the container
+  const tilesX = Math.ceil(W / TILE) + 2;
+  const tilesY = Math.ceil(H / TILE) + 2;
+
+  // Pixel offset so centerLat/lon is in the middle
+  const centerPx = latLonToPixel(centerLat, centerLon, zoom, centerTile.x, centerTile.y, TILE);
+  const offsetX = Math.round(W / 2 - centerPx.px - Math.floor(tilesX / 2) * TILE);
+  const offsetY = Math.round(H / 2 - centerPx.py - Math.floor(tilesY / 2) * TILE);
+  const startTileX = centerTile.x - Math.floor(tilesX / 2);
+  const startTileY = centerTile.y - Math.floor(tilesY / 2);
+
+  // Build tile grid
+  let tilesHtml = '';
+  for (let ty = 0; ty < tilesY; ty++) {
+    for (let tx = 0; tx < tilesX; tx++) {
+      const tileX = startTileX + tx;
+      const tileY = startTileY + ty;
+      const subdomain = ['a','b','c'][(tileX + tileY) % 3];
+      const url = `https://${subdomain}.tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+      const left = tx * TILE + offsetX;
+      const top  = ty * TILE + offsetY;
+      tilesHtml += `<img src="${url}" style="position:absolute;left:${left}px;top:${top}px;width:${TILE}px;height:${TILE}px;image-rendering:auto;" crossorigin="anonymous">`;
+    }
+  }
+
+  // Build SVG overlay for markers
+  // Convert each marker lat/lon to pixel coords relative to container
+  function toContainerPx(lat, lon) {
+    const tp = latLonToPixel(lat, lon, zoom, startTileX, startTileY, TILE);
+    return { x: Math.round(tp.px + offsetX), y: Math.round(tp.py + offsetY) };
+  }
+
+  let svgContent = '';
+  // Optional circle (for forecast coverage)
+  if (circleMarker) {
+    // Approximate circle radius in pixels: 1 degree lat ≈ 111km, at zoom 11 ~= ?
+    const metersPerPixel = 156543.03392 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, zoom);
+    const r = Math.round(circleMarker.radiusM / metersPerPixel);
+    const cp = toContainerPx(circleMarker.lat, circleMarker.lon);
+    svgContent += `<circle cx="${cp.x}" cy="${cp.y}" r="${r}" fill="rgba(212,105,30,0.08)" stroke="#d4691e" stroke-width="1.5" stroke-dasharray="6,4"/>`;
+  }
+
+  // Marker tooltips container (HTML, not SVG, so text is crisp)
+  let tooltipsHtml = '';
+  const markerElems = markers.map((m, i) => {
+    const p = toContainerPx(m.lat, m.lon);
+    const r = m.main ? 9 : 7;
+    // Pin circle
+    svgContent += `<circle cx="${p.x}" cy="${p.y}" r="${r+2}" fill="white" opacity="0.9"/>`;
+    svgContent += `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${m.color}" class="map-pin" data-idx="${i}" style="cursor:pointer"/>`;
+    svgContent += `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="transparent" class="map-pin-hit" data-idx="${i}" style="cursor:pointer"/>`;
+    // Tooltip div positioned absolutely
+    const tipId = `maptip-${containerId}-${i}`;
+    tooltipsHtml += `<div id="${tipId}" style="display:none;position:absolute;left:${p.x+12}px;top:${p.y-10}px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:0.78rem;pointer-events:none;z-index:10;min-width:160px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+      <div style="font-weight:500;margin-bottom:3px;">${m.name}</div>
+      <div style="font-size:0.7rem;color:var(--text3);">${m.desc}</div>
+    </div>`;
+    return { p, tipId };
+  });
+
+  wrap.innerHTML = `
+    <div style="position:relative;width:${W}px;height:${H}px;overflow:hidden;background:#e8e0d5;">
+      ${tilesHtml}
+      <svg style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;pointer-events:none;" viewBox="0 0 ${W} ${H}">
+        ${svgContent}
+      </svg>
+      ${tooltipsHtml}
+      <div style="position:absolute;bottom:4px;right:6px;font-size:0.6rem;color:#555;background:rgba(255,255,255,0.7);padding:1px 5px;border-radius:4px;">© <a href='https://openstreetmap.org' target='_blank' style='color:#555'>OpenStreetMap</a></div>
+    </div>`;
+
+  // Click handlers on SVG pins — toggle tooltip
+  wrap.querySelectorAll('.map-pin, .map-pin-hit').forEach(el => {
+    el.style.pointerEvents = 'all';
+    el.addEventListener('click', (e) => {
+      const idx = +el.dataset.idx;
+      const tipId = `maptip-${containerId}-${idx}`;
+      const tip = document.getElementById(tipId);
+      // Hide all other tips
+      wrap.querySelectorAll('[id^="maptip-"]').forEach(t => { if (t.id !== tipId) t.style.display = 'none'; });
+      tip.style.display = tip.style.display === 'none' ? 'block' : 'none';
+      e.stopPropagation();
+    });
+  });
+  wrap.addEventListener('click', () => {
+    wrap.querySelectorAll('[id^="maptip-"]').forEach(t => t.style.display = 'none');
+  });
+}
+
+function initMaps() {
+  buildTileMap('map-history-wrap', 47.387, 8.53, 12, UGZ_STATIONS, null);
+  buildTileMap('map-forecast-wrap', FC_POINT.lat, FC_POINT.lon, 11,
+    [{ name: 'Open-Meteo Gitterpunkt', lat: FC_POINT.lat, lon: FC_POINT.lon, main: true, color: '#d4691e',
+       desc: '47.3769°N · 8.5417°E · Modelle: ERA5 + ICON · ~1 km · +192h' }],
+    { lat: FC_POINT.lat, lon: FC_POINT.lon, radiusM: 8000 }
+  );
+}
+
+window.addEventListener('load', () => setTimeout(initMaps, 200));
+</script>
+  <button class="egg-btn" id="eggBtn" title="🛩️" onclick="toggleMetarTab()">🛩️</button>
+</body>
+</html>
