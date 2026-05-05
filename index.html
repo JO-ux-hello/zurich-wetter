@@ -447,7 +447,7 @@ async function smartFetch(url) {
     const r = await fetch(url);
     if (r.ok) {
       const t = await r.text();
-      if (t.length > 200 && !t.includes('html')) {
+      if (t.length > 200 && !t.trimStart().startsWith('<')) {
         console.log('Direct fetch succeeded:', url.split('/').pop());
         return t;
       }
@@ -459,13 +459,15 @@ async function smartFetch(url) {
     u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
     u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+    u => `https://thingproxy.freeboard.io/fetch/${u}`,
   ];
   for (const p of proxies) {
     try {
       const r = await fetch(p(url));
       if (r.ok) {
         const t = await r.text();
-        if (t.length > 200 && !t.startsWith('<')) {
+        if (t.length > 200 && !t.trimStart().startsWith('<')) {
           console.log('Proxy succeeded for:', url.split('/').pop());
           return t;
         }
@@ -803,7 +805,7 @@ function renderPrevYear(selDay) {
   const dateStr = dt25.toLocaleDateString('de-CH', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
 
   if (!days2025.length) {
-    return;  // 2025 data not loaded yet
+    return; // days2025 not loaded
       return;
   }
 
@@ -811,7 +813,7 @@ function renderPrevYear(selDay) {
 
   const d25 = days2025.find(d => d.date === prevDay);
   if (!d25) {
-    return;  // no data for this day
+    return; // no matching day
       return;
   }
 
